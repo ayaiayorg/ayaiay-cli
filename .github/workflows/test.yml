@@ -35,7 +35,7 @@ jobs:
       
       - name: Run tests with pytest
         run: |
-          pytest --cov=ayaiay --cov-report=term-missing
+          pytest --cov=src/ayaiay --cov-report=term-missing
       
       - name: Upload coverage reports
         if: matrix.python-version == '3.11'
@@ -77,7 +77,7 @@ jobs:
       
       - name: Type checking with mypy
         run: |
-          mypy src/ayaiay
+          mypy .
         continue-on-error: true
       
       - name: Lint with ruff
