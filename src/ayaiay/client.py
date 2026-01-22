@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
 
 import httpx
 
 from ayaiay.config import Config
 from ayaiay.models import Pack, PackVersion, SearchResult
+
+# Constants
+USER_AGENT: Final[str] = "ayaiay-cli/0.1.0"
+DEFAULT_PAGE: Final[int] = 1
+DEFAULT_PER_PAGE: Final[int] = 20
+MAX_PER_PAGE: Final[int] = 100
 
 
 class AyAiAyError(Exception):
@@ -53,7 +59,7 @@ class AyAiAyClient:
         """Get or create the HTTP client."""
         if self._client is None:
             headers = {
-                "User-Agent": "ayaiay-cli/0.1.0",
+                "User-Agent": USER_AGENT,
                 "Accept": "application/json",
             }
             if self.config.token:
@@ -79,7 +85,19 @@ class AyAiAyClient:
         self.close()
 
     def _handle_response(self, response: httpx.Response) -> dict[str, Any]:
-        """Handle API response and raise appropriate exceptions."""
+        """Handle API response and raise appropriate exceptions.
+
+        Args:
+            response: HTTP response to handle.
+
+        Returns:
+            Parsed JSON response data.
+
+        Raises:
+            NotFoundError: If resource is not found (404).
+            AuthenticationError: If authentication fails (401, 403).
+            APIError: For other HTTP errors.
+        """
         if response.status_code == 404:
             raise NotFoundError("Resource not found")
         if response.status_code == 401:
@@ -94,7 +112,8 @@ class AyAiAyClient:
                 message = response.text
             raise APIError(message, status_code=response.status_code)
 
-        return response.json()
+        json_data: dict[str, Any] = response.json()
+        return json_data
 
     def health_check(self) -> bool:
         """Check if the API is healthy.
@@ -113,8 +132,8 @@ class AyAiAyClient:
         query: str | None = None,
         pack_type: str | None = None,
         tags: list[str] | None = None,
-        page: int = 1,
-        per_page: int = 20,
+        page: int = DEFAULT_PAGE,
+        per_page: int = DEFAULT_PER_PAGE,
     ) -> SearchResult:
         """Search for packs in the marketplace.
 
@@ -123,11 +142,18 @@ class AyAiAyClient:
             pack_type: Filter by pack type (agent, instruction, prompt).
             tags: Filter by tags.
             page: Page number (1-indexed).
-            per_page: Results per page.
+            per_page: Results per page (max 100).
 
         Returns:
             SearchResult containing matching packs.
+
+        Raises:
+            APIError: If the API request fails.
+            ValueError: If per_page exceeds maximum.
         """
+        if per_page > MAX_PER_PAGE:
+            raise ValueError(f"per_page cannot exceed {MAX_PER_PAGE}")
+
         params: dict[str, Any] = {
             "page": page,
             "per_page": per_page,

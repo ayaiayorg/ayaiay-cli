@@ -214,11 +214,11 @@ def validate(path: Path, quiet: bool) -> None:
 
             if result.manifest:
                 info = Text()
-                info.append(f"Name: ", style="dim")
+                info.append("Name: ", style="dim")
                 info.append(f"{result.manifest.name}\n", style="cyan")
 
                 if result.manifest.description:
-                    info.append(f"Description: ", style="dim")
+                    info.append("Description: ", style="dim")
                     info.append(f"{result.manifest.description}\n")
 
                 counts = []
@@ -230,7 +230,7 @@ def validate(path: Path, quiet: bool) -> None:
                     counts.append(f"{len(result.manifest.prompts)} prompts")
 
                 if counts:
-                    info.append(f"Contents: ", style="dim")
+                    info.append("Contents: ", style="dim")
                     info.append(", ".join(counts))
 
                 console.print(Panel(info, title="Manifest Info", border_style="green"))
@@ -299,27 +299,27 @@ def show(ctx: click.Context, reference: str) -> None:
 
     # Pack info panel
     info = Text()
-    info.append(f"Name: ", style="dim")
+    info.append("Name: ", style="dim")
     info.append(f"{pack.full_name}\n", style="cyan bold")
-    info.append(f"Type: ", style="dim")
+    info.append("Type: ", style="dim")
     info.append(f"{pack.pack_type.value}\n", style="magenta")
 
     if pack.description:
-        info.append(f"Description: ", style="dim")
+        info.append("Description: ", style="dim")
         info.append(f"{pack.description}\n")
 
-    info.append(f"Latest Version: ", style="dim")
+    info.append("Latest Version: ", style="dim")
     info.append(f"{pack.latest_version or 'N/A'}\n", style="green")
 
-    info.append(f"Downloads: ", style="dim")
+    info.append("Downloads: ", style="dim")
     info.append(f"{pack.downloads}\n")
 
     if pack.tags:
-        info.append(f"Tags: ", style="dim")
+        info.append("Tags: ", style="dim")
         info.append(", ".join(pack.tags) + "\n")
 
     if pack.repository_url:
-        info.append(f"Repository: ", style="dim")
+        info.append("Repository: ", style="dim")
         info.append(f"{pack.repository_url}\n", style="blue underline")
 
     console.print(Panel(info, title="Pack Details", border_style="cyan"))

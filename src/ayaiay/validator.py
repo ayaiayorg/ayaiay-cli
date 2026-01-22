@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import yaml
-from jsonschema import Draft7Validator, ValidationError
+from jsonschema import Draft7Validator
+from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 
 from ayaiay.models import Manifest
+
+# Constants
+DEFAULT_MANIFEST_VERSION: Final[str] = "1.0"
+MAX_NAME_LENGTH: Final[int] = 64
+MAX_DESCRIPTION_LENGTH: Final[int] = 500
+MAX_TAGS: Final[int] = 10
 
 # JSON Schema for ayaiay.yaml manifest files
 MANIFEST_SCHEMA: dict[str, Any] = {
@@ -22,19 +29,19 @@ MANIFEST_SCHEMA: dict[str, Any] = {
         "version": {
             "type": "string",
             "description": "Manifest schema version",
-            "default": "1.0",
+            "default": DEFAULT_MANIFEST_VERSION,
         },
         "name": {
             "type": "string",
             "description": "Pack name",
             "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$",
             "minLength": 1,
-            "maxLength": 64,
+            "maxLength": MAX_NAME_LENGTH,
         },
         "description": {
             "type": "string",
             "description": "Pack description",
-            "maxLength": 500,
+            "maxLength": MAX_DESCRIPTION_LENGTH,
         },
         "author": {
             "type": "string",
@@ -52,7 +59,7 @@ MANIFEST_SCHEMA: dict[str, Any] = {
         "tags": {
             "type": "array",
             "items": {"type": "string", "pattern": "^[a-z0-9-]+$"},
-            "maxItems": 10,
+            "maxItems": MAX_TAGS,
             "description": "Pack tags for discovery",
         },
         "agents": {
@@ -117,13 +124,14 @@ MANIFEST_SCHEMA: dict[str, Any] = {
 }
 
 
-class ValidationResult:
+class ValidationResult(BaseModel):
     """Result of manifest validation."""
 
-    def __init__(self) -> None:
-        self.errors: list[str] = []
-        self.warnings: list[str] = []
-        self.manifest: Manifest | None = None
+    errors: list[str] = Field(default_factory=list, description="Validation errors")
+    warnings: list[str] = Field(default_factory=list, description="Validation warnings")
+    manifest: Manifest | None = Field(default=None, description="Parsed manifest if valid")
+
+    model_config = {"arbitrary_types_allowed": True}
 
     @property
     def is_valid(self) -> bool:
@@ -131,11 +139,19 @@ class ValidationResult:
         return len(self.errors) == 0
 
     def add_error(self, message: str) -> None:
-        """Add a validation error."""
+        """Add a validation error.
+
+        Args:
+            message: Error message to add.
+        """
         self.errors.append(message)
 
     def add_warning(self, message: str) -> None:
-        """Add a validation warning."""
+        """Add a validation warning.
+
+        Args:
+            message: Warning message to add.
+        """
         self.warnings.append(message)
 
 
@@ -191,7 +207,7 @@ def validate_manifest(path: Path | str) -> ValidationResult:
         result.manifest = Manifest.model_validate(data)
     except PydanticValidationError as e:
         for error in e.errors():
-            loc = " -> ".join(str(l) for l in error["loc"])
+            loc = " -> ".join(str(location) for location in error["loc"])
             result.add_error(f"[{loc}] {error['msg']}")
         return result
 
