@@ -8,14 +8,16 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import NamedTuple
-
-import yaml
+from typing import Final, NamedTuple
 
 from ayaiay.client import AyAiAyClient, NotFoundError
 from ayaiay.config import Config
 from ayaiay.models import Pack, PackVersion
-from ayaiay.validator import load_manifest
+
+# Constants
+METADATA_FILENAME: Final[str] = ".ayaiay-metadata.json"
+GIT_CLONE_DEPTH: Final[int] = 1
+VERSION_PREFIX: Final[str] = "v"
 
 
 class PackReference(NamedTuple):
@@ -237,7 +239,7 @@ class Installer:
         Returns:
             List of (full_name, version, path) tuples.
         """
-        installed = []
+        installed: list[tuple[str, str, Path]] = []
         install_dir = self.config.install_dir
 
         if not install_dir.exists():
@@ -260,14 +262,22 @@ class Installer:
         return self.config.install_dir / publisher / name
 
     def _get_installed_version(self, install_path: Path) -> str | None:
-        """Get the installed version from metadata."""
-        metadata_path = install_path / ".ayaiay-metadata.json"
+        """Get the installed version from metadata.
+
+        Args:
+            install_path: Path to the installed pack.
+
+        Returns:
+            Version string or None if not found.
+        """
+        metadata_path = install_path / METADATA_FILENAME
         if metadata_path.exists():
             try:
                 with open(metadata_path) as f:
                     data = json.load(f)
-                return data.get("version")
-            except Exception:
+                version_value: str | None = data.get("version")
+                return version_value
+            except (json.JSONDecodeError, OSError):
                 pass
         return None
 
@@ -277,10 +287,18 @@ class Installer:
         version: PackVersion,
         install_path: Path,
     ) -> None:
-        """Pull pack from OCI registry (GHCR).
+        """Pull pack from OCI registry or GitHub.
 
-        This is a simplified implementation. In production, this would use
-        the oras library or similar for proper OCI registry interactions.
+        This method attempts to pull a pack first from GitHub if a repository
+        URL is available, then falls back to OCI registry if necessary.
+
+        Args:
+            pack: Pack information.
+            version: Version to install.
+            install_path: Target installation path.
+
+        Raises:
+            RuntimeError: If both GitHub and OCI pulls fail.
         """
         # For now, we'll try to clone from GitHub if available
         if pack.repository_url:
@@ -295,7 +313,16 @@ class Installer:
         version: str,
         install_path: Path,
     ) -> None:
-        """Clone pack from GitHub repository."""
+        """Clone pack from GitHub repository.
+
+        Args:
+            repo_url: GitHub repository URL.
+            version: Version tag to clone.
+            install_path: Path to install the pack.
+
+        Raises:
+            subprocess.CalledProcessError: If git clone fails.
+        """
         install_path.parent.mkdir(parents=True, exist_ok=True)
 
         if install_path.exists():
@@ -303,18 +330,18 @@ class Installer:
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Clone with specific tag/version
-            tag = f"v{version}" if not version.startswith("v") else version
+            tag = f"{VERSION_PREFIX}{version}" if not version.startswith(VERSION_PREFIX) else version
             try:
                 subprocess.run(
-                    ["git", "clone", "--depth", "1", "--branch", tag, repo_url, tmp_dir],
+                    ["git", "clone", "--depth", str(GIT_CLONE_DEPTH), "--branch", tag, repo_url, tmp_dir],
                     check=True,
                     capture_output=True,
                     text=True,
                 )
             except subprocess.CalledProcessError:
-                # Try without 'v' prefix
+                # Try without version prefix
                 subprocess.run(
-                    ["git", "clone", "--depth", "1", "--branch", version, repo_url, tmp_dir],
+                    ["git", "clone", "--depth", str(GIT_CLONE_DEPTH), "--branch", version, repo_url, tmp_dir],
                     check=True,
                     capture_output=True,
                     text=True,
@@ -334,7 +361,16 @@ class Installer:
         version: PackVersion,
         install_path: Path,
     ) -> None:
-        """Pull pack from OCI registry."""
+        """Pull pack from OCI registry using oras CLI.
+
+        Args:
+            pack: Pack information.
+            version: Version to pull.
+            install_path: Target installation path.
+
+        Raises:
+            RuntimeError: If oras is not installed or pull fails.
+        """
         image = f"{self.config.registry_url}/{pack.publisher}/{pack.name}:{version.version}"
 
         install_path.parent.mkdir(parents=True, exist_ok=True)
@@ -351,10 +387,10 @@ class Installer:
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass
 
-        # Fallback error
+        # Fallback error with helpful message
         raise RuntimeError(
-            f"Cannot pull from OCI registry. Install 'oras' CLI or ensure "
-            f"the pack has a GitHub repository URL."
+            "Cannot pull from OCI registry. Install 'oras' CLI or ensure "
+            "the pack has a GitHub repository URL."
         )
 
     def _write_install_metadata(
@@ -363,7 +399,13 @@ class Installer:
         pack: Pack,
         version: PackVersion,
     ) -> None:
-        """Write installation metadata file."""
+        """Write installation metadata file.
+
+        Args:
+            install_path: Path to the installed pack.
+            pack: Pack information.
+            version: Version information.
+        """
         metadata = {
             "pack_id": pack.id,
             "full_name": pack.full_name,
@@ -371,6 +413,6 @@ class Installer:
             "installed_at": version.published_at.isoformat() if version.published_at else None,
             "digest": version.digest,
         }
-        metadata_path = install_path / ".ayaiay-metadata.json"
+        metadata_path = install_path / METADATA_FILENAME
         with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
