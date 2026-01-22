@@ -1,6 +1,6 @@
 """Tests for the AyAiAy API client."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import httpx
 import pytest
@@ -12,7 +12,7 @@ from ayaiay.client import (
     NotFoundError,
 )
 from ayaiay.config import Config
-from ayaiay.models import Pack, PackType, PackVersion, SearchResult
+from ayaiay.models import Pack, SearchResult
 
 
 @pytest.fixture
@@ -25,9 +25,17 @@ def config() -> Config:
 
 
 @pytest.fixture
-def client(config: Config) -> AyAiAyClient:
-    """Create a test client."""
-    return AyAiAyClient(config=config)
+def mock_httpx_client() -> MagicMock:
+    """Create a mock httpx client."""
+    return MagicMock(spec=httpx.Client)
+
+
+@pytest.fixture
+def client(config: Config, mock_httpx_client: MagicMock) -> AyAiAyClient:
+    """Create a test client with mocked httpx client."""
+    api_client = AyAiAyClient(config=config)
+    api_client._client = mock_httpx_client
+    return api_client
 
 
 class TestAyAiAyClient:
@@ -35,34 +43,37 @@ class TestAyAiAyClient:
 
     def test_client_initialization(self, config: Config) -> None:
         """Test client initializes with config."""
-        client = AyAiAyClient(config=config)
-        assert client.config == config
-        assert client._client is None
+        api_client = AyAiAyClient(config=config)
+        assert api_client.config == config
+        assert api_client._client is None
 
     def test_client_context_manager(self, config: Config) -> None:
         """Test client works as context manager."""
-        with AyAiAyClient(config=config) as client:
-            assert client is not None
-        # Client should be closed after context
+        with AyAiAyClient(config=config) as api_client:
+            assert api_client is not None
 
-    def test_health_check_success(self, client: AyAiAyClient) -> None:
+    def test_health_check_success(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test health check returns True when API is healthy."""
-        with patch.object(client, "client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_client.get.return_value = mock_response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_httpx_client.get.return_value = mock_response
 
-            assert client.health_check() is True
-            mock_client.get.assert_called_with("/api/health")
+        assert client.health_check() is True
+        mock_httpx_client.get.assert_called_with("/api/health")
 
-    def test_health_check_failure(self, client: AyAiAyClient) -> None:
+    def test_health_check_failure(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test health check returns False when API is down."""
-        with patch.object(client, "client") as mock_client:
-            mock_client.get.side_effect = httpx.RequestError("Connection failed")
+        mock_httpx_client.get.side_effect = httpx.RequestError("Connection failed")
 
-            assert client.health_check() is False
+        assert client.health_check() is False
 
-    def test_search_packs(self, client: AyAiAyClient) -> None:
+    def test_search_packs(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test searching for packs."""
         mock_response_data = {
             "items": [
@@ -77,44 +88,46 @@ class TestAyAiAyClient:
             "total": 1,
         }
 
-        with patch.object(client, "client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_client.get.return_value = mock_response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_response_data
+        mock_httpx_client.get.return_value = mock_response
 
-            result = client.search_packs(query="test")
+        result = client.search_packs(query="test")
 
-            assert isinstance(result, SearchResult)
-            assert len(result.packs) == 1
-            assert result.packs[0].name == "test-pack"
-            assert result.total == 1
+        assert isinstance(result, SearchResult)
+        assert len(result.packs) == 1
+        assert result.packs[0].name == "test-pack"
+        assert result.total == 1
 
-    def test_search_packs_with_filters(self, client: AyAiAyClient) -> None:
+    def test_search_packs_with_filters(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test searching with filters."""
-        with patch.object(client, "client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = {"items": [], "total": 0}
-            mock_client.get.return_value = mock_response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"items": [], "total": 0}
+        mock_httpx_client.get.return_value = mock_response
 
-            client.search_packs(
-                query="code",
-                pack_type="agent",
-                tags=["python", "review"],
-                page=2,
-                per_page=10,
-            )
+        client.search_packs(
+            query="code",
+            pack_type="agent",
+            tags=["python", "review"],
+            page=2,
+            per_page=10,
+        )
 
-            call_args = mock_client.get.call_args
-            params = call_args.kwargs.get("params", call_args[1].get("params", {}))
-            assert params["q"] == "code"
-            assert params["type"] == "agent"
-            assert params["tags"] == "python,review"
-            assert params["page"] == 2
-            assert params["per_page"] == 10
+        call_args = mock_httpx_client.get.call_args
+        params = call_args.kwargs.get("params", call_args[1].get("params", {}))
+        assert params["q"] == "code"
+        assert params["type"] == "agent"
+        assert params["tags"] == "python,review"
+        assert params["page"] == 2
+        assert params["per_page"] == 10
 
-    def test_get_pack(self, client: AyAiAyClient) -> None:
+    def test_get_pack(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test getting a specific pack."""
         mock_response_data = {
             "id": "pack-1",
@@ -125,30 +138,32 @@ class TestAyAiAyClient:
             "downloads": 50,
         }
 
-        with patch.object(client, "client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_client.get.return_value = mock_response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_response_data
+        mock_httpx_client.get.return_value = mock_response
 
-            pack = client.get_pack("test-user/test-pack")
+        pack = client.get_pack("test-user/test-pack")
 
-            assert isinstance(pack, Pack)
-            assert pack.name == "test-pack"
-            assert pack.publisher == "test-user"
-            mock_client.get.assert_called_with("/api/packs/test-user/test-pack")
+        assert isinstance(pack, Pack)
+        assert pack.name == "test-pack"
+        assert pack.publisher == "test-user"
+        mock_httpx_client.get.assert_called_with("/api/packs/test-user/test-pack")
 
-    def test_get_pack_not_found(self, client: AyAiAyClient) -> None:
+    def test_get_pack_not_found(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test getting a non-existent pack raises NotFoundError."""
-        with patch.object(client, "client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 404
-            mock_client.get.return_value = mock_response
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_httpx_client.get.return_value = mock_response
 
-            with pytest.raises(NotFoundError):
-                client.get_pack("nonexistent/pack")
+        with pytest.raises(NotFoundError):
+            client.get_pack("nonexistent/pack")
 
-    def test_get_pack_versions(self, client: AyAiAyClient) -> None:
+    def test_get_pack_versions(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test getting pack versions."""
         mock_response_data = {
             "versions": [
@@ -157,41 +172,42 @@ class TestAyAiAyClient:
             ]
         }
 
-        with patch.object(client, "client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 200
-            mock_response.json.return_value = mock_response_data
-            mock_client.get.return_value = mock_response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_response_data
+        mock_httpx_client.get.return_value = mock_response
 
-            versions = client.get_pack_versions("test-user/test-pack")
+        versions = client.get_pack_versions("test-user/test-pack")
 
-            assert len(versions) == 2
-            assert versions[0].version == "1.0.0"
-            assert versions[1].version == "0.9.0"
+        assert len(versions) == 2
+        assert versions[0].version == "1.0.0"
+        assert versions[1].version == "0.9.0"
 
-    def test_authentication_error(self, client: AyAiAyClient) -> None:
+    def test_authentication_error(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test authentication error is raised for 401."""
-        with patch.object(client, "client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 401
-            mock_client.get.return_value = mock_response
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_httpx_client.get.return_value = mock_response
 
-            with pytest.raises(AuthenticationError):
-                client.get_pack("test/pack")
+        with pytest.raises(AuthenticationError):
+            client.get_pack("test/pack")
 
-    def test_api_error(self, client: AyAiAyClient) -> None:
+    def test_api_error(
+        self, client: AyAiAyClient, mock_httpx_client: MagicMock
+    ) -> None:
         """Test API error is raised for other error codes."""
-        with patch.object(client, "client") as mock_client:
-            mock_response = MagicMock()
-            mock_response.status_code = 500
-            mock_response.text = "Internal Server Error"
-            mock_response.json.side_effect = Exception("Not JSON")
-            mock_client.get.return_value = mock_response
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_response.json.side_effect = Exception("Not JSON")
+        mock_httpx_client.get.return_value = mock_response
 
-            with pytest.raises(APIError) as exc_info:
-                client.get_pack("test/pack")
+        with pytest.raises(APIError) as exc_info:
+            client.get_pack("test/pack")
 
-            assert exc_info.value.status_code == 500
+        assert exc_info.value.status_code == 500
 
 
 class TestSearchResult:
