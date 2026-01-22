@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any, Final
 
 import yaml
+# Note: We use Draft7Validator.iter_errors() which returns error objects directly,
+# so we don't need to import or catch ValidationError from jsonschema
 from jsonschema import Draft7Validator
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
