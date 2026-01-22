@@ -216,6 +216,33 @@ mypy .
 ruff check .
 ```
 
+### Publishing to PyPI
+
+This package uses GitHub Actions with [Trusted Publisher](https://docs.pypi.org/trusted-publishers/) (OIDC) for secure, tokenless publishing.
+
+**Setup (one-time):**
+
+1. Go to [PyPI](https://pypi.org) and create an account
+2. Navigate to your account's "Publishing" settings
+3. Add a new Trusted Publisher with:
+   - Owner: `ayaiayorg`
+   - Repository: `ayaiay-cli`
+   - Workflow: `publish.yml`
+   - Environment: `pypi`
+4. Repeat for [TestPyPI](https://test.pypi.org) with environment: `testpypi`
+
+**Publishing:**
+
+- **Automatic:** Create a GitHub Release to publish to PyPI
+- **Manual (TestPyPI):** Run the "Publish to PyPI" workflow manually, selecting `testpypi`
+- **Manual (PyPI):** Run the workflow manually, selecting `pypi`
+
+**Before releasing:**
+
+1. Update the version in `pyproject.toml`
+2. Commit and push changes
+3. Create a GitHub Release with a tag matching the version (e.g., `v0.1.0`)
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
