@@ -48,6 +48,48 @@ ayaiay install acme/code-reviewer@1.0.0
 ayaiay install acme/code-reviewer --force
 ```
 
+### Package Management with ayaiay.json
+
+Similar to `composer.json` in PHP or `package.json` in Node.js, you can use `ayaiay.json` to track all your project's pack dependencies with their versions.
+
+```bash
+# Initialize a new ayaiay.json file
+ayaiay init
+
+# Add a pack to ayaiay.json and install it
+ayaiay add acme/code-reviewer
+ayaiay add acme/code-reviewer@1.0.0
+
+# Remove a pack from ayaiay.json and uninstall it
+ayaiay remove acme/code-reviewer
+
+# Sync installed packs with ayaiay.json (useful after cloning a project)
+ayaiay sync
+
+# Update all packs to their latest versions
+ayaiay update
+
+# Update a specific pack
+ayaiay update acme/code-reviewer
+```
+
+**Example ayaiay.json:**
+```json
+{
+  "version": "1.0",
+  "packages": {
+    "acme/code-reviewer": {
+      "name": "acme/code-reviewer",
+      "version": "1.2.0",
+      "installed_at": "2024-01-15T10:30:00Z",
+      "digest": "sha256:abc123...",
+      "dependencies": {}
+    }
+  },
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
 ### Manage Installed Packs
 
 ```bash
@@ -79,7 +121,7 @@ ayaiay info
 ## SDK Usage
 
 ```python
-from ayaiay import AyAiAyClient, validate_manifest
+from ayaiay import AyAiAyClient, PackageManager, validate_manifest
 
 # Search for packs
 with AyAiAyClient() as client:
@@ -91,6 +133,32 @@ with AyAiAyClient() as client:
 with AyAiAyClient() as client:
     pack = client.get_pack("acme/code-reviewer")
     versions = client.get_pack_versions("acme/code-reviewer")
+
+# Package management with ayaiay.json
+pm = PackageManager()
+
+# Initialize lock file
+pm.init()
+
+# Add packages
+success, message, result = pm.add_package("acme/code-reviewer@1.0.0")
+if success:
+    print(f"Added: {message}")
+
+# List packages in lock file
+packages = pm.list_packages()
+for name, version, installed_at in packages:
+    print(f"{name}@{version}")
+
+# Sync packages (install missing ones)
+results = pm.sync()
+for package_name, success, message in results:
+    print(f"{package_name}: {message}")
+
+# Update packages to latest versions
+results = pm.update()
+for package_name, success, message in results:
+    print(f"{package_name}: {message}")
 
 # Validate a manifest file
 result = validate_manifest("ayaiay.yaml")

@@ -8,7 +8,7 @@ import yaml
 from click.testing import CliRunner
 
 from ayaiay.cli import main
-from ayaiay.models import Pack, PackType, PackVersion, SearchResult
+from ayaiay.models import Pack, PackType, SearchResult
 
 
 @pytest.fixture
@@ -163,7 +163,9 @@ class TestInstallCommand:
             mock_result = MagicMock()
             mock_result.success = True
             mock_result.message = "Successfully installed test-user/test-pack@1.0.0"
-            mock_result.install_path = Path("/home/user/.ayaiay/packs/test-user/test-pack")
+            mock_result.install_path = Path(
+                "/home/user/.ayaiay/packs/test-user/test-pack"
+            )
             mock_installer.install.return_value = mock_result
 
             result = runner.invoke(main, ["install", "test-user/test-pack@1.0.0"])
@@ -208,8 +210,16 @@ class TestListCommand:
             mock_installer = MagicMock()
             mock_installer_class.return_value = mock_installer
             mock_installer.list_installed.return_value = [
-                ("test-user/pack-one", "1.0.0", Path("/home/.ayaiay/packs/test-user/pack-one")),
-                ("test-user/pack-two", "2.0.0", Path("/home/.ayaiay/packs/test-user/pack-two")),
+                (
+                    "test-user/pack-one",
+                    "1.0.0",
+                    Path("/home/.ayaiay/packs/test-user/pack-one"),
+                ),
+                (
+                    "test-user/pack-two",
+                    "2.0.0",
+                    Path("/home/.ayaiay/packs/test-user/pack-two"),
+                ),
             ]
 
             result = runner.invoke(main, ["list"])

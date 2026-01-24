@@ -99,12 +99,40 @@ class Manifest(BaseModel):
     license: str | None = Field(None, description="Pack license")
     repository: str | None = Field(None, description="Repository URL")
     tags: list[str] = Field(default_factory=list, description="Pack tags")
-    agents: list[ManifestAgent] = Field(default_factory=list, description="Agent definitions")
+    agents: list[ManifestAgent] = Field(
+        default_factory=list, description="Agent definitions"
+    )
     instructions: list[ManifestInstruction] = Field(
         default_factory=list, description="Instruction definitions"
     )
-    prompts: list[ManifestPrompt] = Field(default_factory=list, description="Prompt definitions")
+    prompts: list[ManifestPrompt] = Field(
+        default_factory=list, description="Prompt definitions"
+    )
     dependencies: dict[str, str] = Field(
         default_factory=dict, description="Pack dependencies"
     )
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
+
+
+class LockFilePackage(BaseModel):
+    """Package entry in ayaiay.json lock file."""
+
+    name: str = Field(..., description="Package full name (publisher/name)")
+    version: str = Field(..., description="Installed version")
+    installed_at: datetime | None = Field(None, description="Installation timestamp")
+    digest: str | None = Field(None, description="Package digest/hash")
+    dependencies: dict[str, str] = Field(
+        default_factory=dict, description="Package dependencies"
+    )
+
+
+class LockFile(BaseModel):
+    """AyAiAy lock file (ayaiay.json) for tracking installed packages."""
+
+    version: str = Field("1.0", description="Lock file schema version")
+    packages: dict[str, LockFilePackage] = Field(
+        default_factory=dict, description="Installed packages keyed by full name"
+    )
+    updated_at: datetime | None = Field(None, description="Last update timestamp")

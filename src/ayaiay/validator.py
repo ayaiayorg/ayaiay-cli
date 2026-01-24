@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Final
 
 import yaml
+
 # Note: We use Draft7Validator.iter_errors() which returns error objects directly,
 # so we don't need to import or catch ValidationError from jsonschema
 from jsonschema import Draft7Validator
@@ -131,7 +132,9 @@ class ValidationResult(BaseModel):
 
     errors: list[str] = Field(default_factory=list, description="Validation errors")
     warnings: list[str] = Field(default_factory=list, description="Validation warnings")
-    manifest: Manifest | None = Field(default=None, description="Parsed manifest if valid")
+    manifest: Manifest | None = Field(
+        default=None, description="Parsed manifest if valid"
+    )
 
     model_config = {"arbitrary_types_allowed": True}
 
@@ -222,9 +225,7 @@ def validate_manifest(path: Path | str) -> ValidationResult:
 def _validate_semantic_rules(result: ValidationResult, data: dict[str, Any]) -> None:
     """Perform semantic validation rules."""
     # Check for at least one content type
-    has_content = any(
-        data.get(key) for key in ("agents", "instructions", "prompts")
-    )
+    has_content = any(data.get(key) for key in ("agents", "instructions", "prompts"))
     if not has_content:
         result.add_warning(
             "Pack has no agents, instructions, or prompts defined. "

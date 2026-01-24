@@ -125,9 +125,7 @@ class TestAyAiAyClient:
         assert params["page"] == 2
         assert params["per_page"] == 10
 
-    def test_get_pack(
-        self, client: AyAiAyClient, mock_httpx_client: MagicMock
-    ) -> None:
+    def test_get_pack(self, client: AyAiAyClient, mock_httpx_client: MagicMock) -> None:
         """Test getting a specific pack."""
         mock_response_data = {
             "id": "pack-1",
