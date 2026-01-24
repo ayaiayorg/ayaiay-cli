@@ -243,6 +243,16 @@ This package uses GitHub Actions with [Trusted Publisher](https://docs.pypi.org/
 2. Commit and push changes
 3. Create a GitHub Release with a tag matching the version (e.g., `v0.1.0`)
 
+## Automated Agent Workflow
+
+This repository includes a GitHub Actions workflow that automatically processes issues and creates pull requests to resolve them. To use it:
+
+1. Create an issue or use an existing one
+2. Add the `agent-task` or `automation` label
+3. The workflow will automatically create a branch, make changes, and open a PR
+
+For detailed documentation, see [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md).
+
 ## License
 
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
@@ -252,3 +262,4 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 - [AyAiAy.org](https://ayaiay.org) - Marketplace website
 - [Documentation](https://github.com/ayaiayorg/ayaiay) - Full documentation
 - [Issues](https://github.com/ayaiayorg/ayaiay-cli/issues) - Bug reports and feature requests
+- [Agent Workflow Guide](docs/AGENT_WORKFLOW.md) - Automated issue handling
