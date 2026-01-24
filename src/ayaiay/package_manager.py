@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final
 
 from ayaiay.client import AyAiAyClient
 from ayaiay.config import Config
 from ayaiay.installer import Installer, InstallResult, PackReference
-from ayaiay.models import LockFile, LockFilePackage, Pack, PackVersion
+from ayaiay.models import LockFile, LockFilePackage
 
 # Constants
 LOCK_FILENAME: Final[str] = "ayaiay.json"
@@ -58,7 +58,7 @@ class PackageManager:
         Args:
             lock_file: LockFile object to save.
         """
-        lock_file.updated_at = datetime.now(timezone.utc)
+        lock_file.updated_at = datetime.now(UTC)
         with open(self.lock_file_path, "w") as f:
             json.dump(
                 lock_file.model_dump(mode="json"),
@@ -108,7 +108,10 @@ class PackageManager:
             existing = lock_file.packages[pack_ref.full_name]
             return (
                 False,
-                f"Package already in ayaiay.json: {pack_ref.full_name}@{existing.version}",
+                (
+                    f"Package already in ayaiay.json: "
+                    f"{pack_ref.full_name}@{existing.version}"
+                ),
                 InstallResult(False, None, None, None, "Already in lock file"),
             )
 
@@ -219,7 +222,6 @@ class PackageManager:
 
             try:
                 # Get latest version from API
-                pack = self.client.get_pack(pkg_name)
                 versions = self.client.get_pack_versions(pkg_name)
                 if not versions:
                     results.append((pkg_name, False, "No versions available"))
@@ -231,7 +233,11 @@ class PackageManager:
                 current_version = lock_file.packages[pkg_name].version
                 if current_version == latest_version.version:
                     results.append(
-                        (pkg_name, True, f"Already at latest version {current_version}")
+                        (
+                            pkg_name,
+                            True,
+                            f"Already at latest version {current_version}",
+                        )
                     )
                     continue
 
@@ -252,7 +258,10 @@ class PackageManager:
                         (
                             pkg_name,
                             True,
-                            f"Updated from {current_version} to {latest_version.version}",
+                            (
+                                f"Updated from {current_version} "
+                                f"to {latest_version.version}"
+                            ),
                         )
                     )
                 else:

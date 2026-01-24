@@ -164,7 +164,10 @@ class Installer:
                     pack=pack,
                     version=version,
                     install_path=install_path,
-                    message=f"Already installed: {pack_ref.full_name}@{version.version}",
+                    message=(
+                        f"Already installed: "
+                        f"{pack_ref.full_name}@{version.version}"
+                    ),
                 )
 
         # Ensure directories exist
@@ -302,7 +305,9 @@ class Installer:
         """
         # For now, we'll try to clone from GitHub if available
         if pack.repository_url:
-            self._clone_from_github(str(pack.repository_url), version.version, install_path)
+            self._clone_from_github(
+                str(pack.repository_url), version.version, install_path
+            )
         else:
             # Fallback: try OCI pull with oras or docker
             self._pull_oci(pack, version, install_path)
@@ -330,10 +335,23 @@ class Installer:
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Clone with specific tag/version
-            tag = f"{VERSION_PREFIX}{version}" if not version.startswith(VERSION_PREFIX) else version
+            tag = (
+                f"{VERSION_PREFIX}{version}"
+                if not version.startswith(VERSION_PREFIX)
+                else version
+            )
             try:
                 subprocess.run(
-                    ["git", "clone", "--depth", str(GIT_CLONE_DEPTH), "--branch", tag, repo_url, tmp_dir],
+                    [
+                        "git",
+                        "clone",
+                        "--depth",
+                        str(GIT_CLONE_DEPTH),
+                        "--branch",
+                        tag,
+                        repo_url,
+                        tmp_dir,
+                    ],
                     check=True,
                     capture_output=True,
                     text=True,
@@ -341,7 +359,16 @@ class Installer:
             except subprocess.CalledProcessError:
                 # Try without version prefix
                 subprocess.run(
-                    ["git", "clone", "--depth", str(GIT_CLONE_DEPTH), "--branch", version, repo_url, tmp_dir],
+                    [
+                        "git",
+                        "clone",
+                        "--depth",
+                        str(GIT_CLONE_DEPTH),
+                        "--branch",
+                        version,
+                        repo_url,
+                        tmp_dir,
+                    ],
                     check=True,
                     capture_output=True,
                     text=True,
@@ -371,7 +398,9 @@ class Installer:
         Raises:
             RuntimeError: If oras is not installed or pull fails.
         """
-        image = f"{self.config.registry_url}/{pack.publisher}/{pack.name}:{version.version}"
+        image = (
+            f"{self.config.registry_url}/{pack.publisher}/{pack.name}:{version.version}"
+        )
 
         install_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -410,7 +439,9 @@ class Installer:
             "pack_id": pack.id,
             "full_name": pack.full_name,
             "version": version.version,
-            "installed_at": version.published_at.isoformat() if version.published_at else None,
+            "installed_at": (
+                version.published_at.isoformat() if version.published_at else None
+            ),
             "digest": version.digest,
         }
         metadata_path = install_path / METADATA_FILENAME

@@ -1,13 +1,12 @@
 """Tests for manifest validation."""
 
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 import pytest
 import yaml
 
-from ayaiay.validator import ValidationResult, validate_manifest, load_manifest
 from ayaiay.models import Manifest
+from ayaiay.validator import ValidationResult, load_manifest, validate_manifest
 
 
 class TestValidateManifest:

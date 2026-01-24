@@ -1,9 +1,8 @@
 """Tests for package management functionality."""
 
-import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -42,7 +41,7 @@ class TestLockFile:
                 "acme/test-pack": LockFilePackage(
                     name="acme/test-pack",
                     version="1.0.0",
-                    installed_at=datetime.now(timezone.utc),
+                    installed_at=datetime.now(UTC),
                     digest="sha256:abc123",
                 )
             }
@@ -87,7 +86,7 @@ class TestAddPackage:
         )
         mock_version = PackVersion(
             version="1.0.0",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
             digest="sha256:abc123",
         )
         mock_result = InstallResult(
@@ -98,7 +97,9 @@ class TestAddPackage:
             message="Success",
         )
 
-        with patch.object(package_manager.installer, "install", return_value=mock_result):
+        with patch.object(
+            package_manager.installer, "install", return_value=mock_result
+        ):
             success, message, result = package_manager.add_package("acme/test-pack")
 
         assert success is True
@@ -108,7 +109,9 @@ class TestAddPackage:
         assert "acme/test-pack" in lock_file.packages
         assert lock_file.packages["acme/test-pack"].version == "1.0.0"
 
-    def test_add_package_invalid_reference(self, package_manager: PackageManager) -> None:
+    def test_add_package_invalid_reference(
+        self, package_manager: PackageManager
+    ) -> None:
         """Test adding a package with invalid reference."""
         success, message, result = package_manager.add_package("invalid")
         assert success is False
@@ -133,7 +136,9 @@ class TestAddPackage:
             message="Success",
         )
 
-        with patch.object(package_manager.installer, "install", return_value=mock_result):
+        with patch.object(
+            package_manager.installer, "install", return_value=mock_result
+        ):
             package_manager.add_package("acme/test-pack")
 
         # Try to add again
@@ -166,7 +171,9 @@ class TestRemovePackage:
             message="Uninstalled",
         )
 
-        with patch.object(package_manager.installer, "uninstall", return_value=mock_result):
+        with patch.object(
+            package_manager.installer, "uninstall", return_value=mock_result
+        ):
             success, message = package_manager.remove_package("acme/test-pack")
 
         assert success is True
@@ -209,9 +216,12 @@ class TestSync:
             message="Installed",
         )
 
-        with patch.object(
-            package_manager.installer, "list_installed", return_value=[]
-        ), patch.object(package_manager.installer, "install", return_value=mock_result):
+        with (
+            patch.object(package_manager.installer, "list_installed", return_value=[]),
+            patch.object(
+                package_manager.installer, "install", return_value=mock_result
+            ),
+        ):
             results = package_manager.sync()
 
         assert len(results) == 1
@@ -268,19 +278,21 @@ class TestUpdate:
         )
         mock_version = PackVersion(version="2.0.0")
 
-        with patch.object(
-            package_manager.client, "get_pack", return_value=mock_pack
-        ), patch.object(
-            package_manager.client, "get_pack_versions", return_value=[mock_version]
-        ), patch.object(
-            package_manager.installer,
-            "install",
-            return_value=InstallResult(
-                success=True,
-                pack=mock_pack,
-                version=mock_version,
-                install_path=None,
-                message="Updated",
+        with (
+            patch.object(package_manager.client, "get_pack", return_value=mock_pack),
+            patch.object(
+                package_manager.client, "get_pack_versions", return_value=[mock_version]
+            ),
+            patch.object(
+                package_manager.installer,
+                "install",
+                return_value=InstallResult(
+                    success=True,
+                    pack=mock_pack,
+                    version=mock_version,
+                    install_path=None,
+                    message="Updated",
+                ),
             ),
         ):
             results = package_manager.update(package_name="acme/test-pack")
@@ -316,10 +328,11 @@ class TestUpdate:
         )
         mock_version = PackVersion(version="2.0.0")
 
-        with patch.object(
-            package_manager.client, "get_pack", return_value=mock_pack
-        ), patch.object(
-            package_manager.client, "get_pack_versions", return_value=[mock_version]
+        with (
+            patch.object(package_manager.client, "get_pack", return_value=mock_pack),
+            patch.object(
+                package_manager.client, "get_pack_versions", return_value=[mock_version]
+            ),
         ):
             results = package_manager.update(package_name="acme/test-pack")
 
@@ -337,7 +350,7 @@ class TestListPackages:
                 "acme/test-pack": LockFilePackage(
                     name="acme/test-pack",
                     version="1.0.0",
-                    installed_at=datetime.now(timezone.utc),
+                    installed_at=datetime.now(UTC),
                 ),
                 "acme/another-pack": LockFilePackage(
                     name="acme/another-pack",

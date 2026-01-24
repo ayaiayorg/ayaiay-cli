@@ -99,15 +99,21 @@ class Manifest(BaseModel):
     license: str | None = Field(None, description="Pack license")
     repository: str | None = Field(None, description="Repository URL")
     tags: list[str] = Field(default_factory=list, description="Pack tags")
-    agents: list[ManifestAgent] = Field(default_factory=list, description="Agent definitions")
+    agents: list[ManifestAgent] = Field(
+        default_factory=list, description="Agent definitions"
+    )
     instructions: list[ManifestInstruction] = Field(
         default_factory=list, description="Instruction definitions"
     )
-    prompts: list[ManifestPrompt] = Field(default_factory=list, description="Prompt definitions")
+    prompts: list[ManifestPrompt] = Field(
+        default_factory=list, description="Prompt definitions"
+    )
     dependencies: dict[str, str] = Field(
         default_factory=dict, description="Pack dependencies"
     )
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional metadata"
+    )
 
 
 class LockFilePackage(BaseModel):

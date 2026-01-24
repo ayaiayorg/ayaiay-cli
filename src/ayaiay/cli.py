@@ -59,7 +59,9 @@ def main(ctx: click.Context, api_url: str | None) -> None:
 
 @main.command()
 @click.argument("query", required=False)
-@click.option("--type", "-t", "pack_type", type=click.Choice(["agent", "instruction", "prompt"]))
+@click.option(
+    "--type", "-t", "pack_type", type=click.Choice(["agent", "instruction", "prompt"])
+)
 @click.option("--tag", "-g", "tags", multiple=True, help="Filter by tag")
 @click.option("--limit", "-l", default=20, help="Number of results")
 @click.option("--page", "-p", default=1, help="Page number")
@@ -110,19 +112,28 @@ def search(
             pack.full_name,
             pack.pack_type.value,
             pack.latest_version or "-",
-            (pack.description or "")[:50] + "..." if pack.description and len(pack.description) > 50 else pack.description or "-",
+            (
+                (pack.description or "")[:50] + "..."
+                if pack.description and len(pack.description) > 50
+                else pack.description or "-"
+            ),
             str(pack.downloads),
         )
 
     console.print(table)
 
     if result.has_more:
-        console.print(f"\n[dim]Showing page {result.page}. Use --page {result.page + 1} for more.[/dim]")
+        console.print(
+            f"\n[dim]Showing page {result.page}. "
+            f"Use --page {result.page + 1} for more.[/dim]"
+        )
 
 
 @main.command()
 @click.argument("reference")
-@click.option("--force", "-f", is_flag=True, help="Force reinstall if already installed")
+@click.option(
+    "--force", "-f", is_flag=True, help="Force reinstall if already installed"
+)
 @click.pass_context
 def install(ctx: click.Context, reference: str, force: bool) -> None:
     """Install a pack from the marketplace.
@@ -343,24 +354,31 @@ def show(ctx: click.Context, reference: str) -> None:
 
 
 @main.command()
-@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json (default: current directory)")
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(path_type=Path),
+    help="Path to ayaiay.json (default: current directory)",
+)
 @click.pass_context
 def init(ctx: click.Context, path: Path | None) -> None:
     """Initialize a new ayaiay.json file for package management.
-    
+
     This creates a lock file that tracks all installed packs with their versions,
     similar to composer.json in PHP or package.json in Node.js.
-    
+
     Example:
         ayaiay init
         ayaiay init --path /path/to/project
     """
     lock_file_path = (path / "ayaiay.json") if path else None
     pm = PackageManager(lock_file_path=lock_file_path)
-    
+
     if pm.init():
         print_success(f"Created {pm.lock_file_path}")
-        console.print(f"[dim]Use 'ayaiay add <package>' to add packages to your project.[/dim]")
+        console.print(
+            "[dim]Use 'ayaiay add <package>' to add packages to your project.[/dim]"
+        )
     else:
         print_error(f"Lock file already exists: {pm.lock_file_path}")
         sys.exit(1)
@@ -368,17 +386,24 @@ def init(ctx: click.Context, path: Path | None) -> None:
 
 @main.command()
 @click.argument("reference")
-@click.option("--force", "-f", is_flag=True, help="Force reinstall if already installed")
-@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json directory")
+@click.option(
+    "--force", "-f", is_flag=True, help="Force reinstall if already installed"
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(path_type=Path),
+    help="Path to ayaiay.json directory",
+)
 @click.pass_context
 def add(ctx: click.Context, reference: str, force: bool, path: Path | None) -> None:
     """Add a package to ayaiay.json and install it.
-    
+
     REFERENCE format: publisher/pack-name[@version]
-    
+
     The package will be added to ayaiay.json and installed to the local directory.
     This allows you to track all dependencies in one file.
-    
+
     Examples:
         ayaiay add acme/code-reviewer
         ayaiay add acme/code-reviewer@1.0.0
@@ -387,11 +412,11 @@ def add(ctx: click.Context, reference: str, force: bool, path: Path | None) -> N
     config: Config = ctx.obj["config"]
     lock_file_path = (path / "ayaiay.json") if path else None
     pm = PackageManager(config=config, lock_file_path=lock_file_path)
-    
+
     console.print(f"[dim]Adding {reference} to {pm.lock_file_path}...[/dim]")
-    
+
     success, message, result = pm.add_package(reference, force=force)
-    
+
     if success:
         print_success(message)
         if result.install_path:
@@ -403,22 +428,27 @@ def add(ctx: click.Context, reference: str, force: bool, path: Path | None) -> N
 
 @main.command()
 @click.argument("reference")
-@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json directory")
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(path_type=Path),
+    help="Path to ayaiay.json directory",
+)
 @click.pass_context
 def remove(ctx: click.Context, reference: str, path: Path | None) -> None:
     """Remove a package from ayaiay.json and uninstall it.
-    
+
     REFERENCE format: publisher/pack-name
-    
+
     Examples:
         ayaiay remove acme/code-reviewer
     """
     config: Config = ctx.obj["config"]
     lock_file_path = (path / "ayaiay.json") if path else None
     pm = PackageManager(config=config, lock_file_path=lock_file_path)
-    
+
     success, message = pm.remove_package(reference)
-    
+
     if success:
         print_success(message)
     else:
@@ -427,44 +457,49 @@ def remove(ctx: click.Context, reference: str, path: Path | None) -> None:
 
 
 @main.command()
-@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json directory")
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(path_type=Path),
+    help="Path to ayaiay.json directory",
+)
 @click.pass_context
 def sync(ctx: click.Context, path: Path | None) -> None:
     """Sync installed packages with ayaiay.json.
-    
+
     Installs all packages listed in ayaiay.json that aren't currently installed.
     Useful after cloning a project or checking out a different branch.
-    
+
     Example:
         ayaiay sync
     """
     config: Config = ctx.obj["config"]
     lock_file_path = (path / "ayaiay.json") if path else None
     pm = PackageManager(config=config, lock_file_path=lock_file_path)
-    
+
     if not pm.lock_file_path.exists():
         print_error(f"No lock file found: {pm.lock_file_path}")
-        console.print(f"[dim]Use 'ayaiay init' to create one.[/dim]")
+        console.print("[dim]Use 'ayaiay init' to create one.[/dim]")
         sys.exit(1)
-    
+
     console.print(f"[dim]Syncing packages from {pm.lock_file_path}...[/dim]")
     results = pm.sync()
-    
+
     if not results:
         console.print("[dim]No packages to sync.[/dim]")
         return
-    
+
     table = Table(title="Sync Results")
     table.add_column("Package", style="cyan")
     table.add_column("Status", style="bold")
     table.add_column("Message")
-    
+
     for package_name, success, message in results:
         status = "[green]✓[/green]" if success else "[red]✗[/red]"
         table.add_row(package_name, status, message)
-    
+
     console.print(table)
-    
+
     failed = [r for r in results if not r[1]]
     if failed:
         sys.exit(1)
@@ -472,14 +507,19 @@ def sync(ctx: click.Context, path: Path | None) -> None:
 
 @main.command()
 @click.argument("package_name", required=False)
-@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json directory")
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(path_type=Path),
+    help="Path to ayaiay.json directory",
+)
 @click.pass_context
 def update(ctx: click.Context, package_name: str | None, path: Path | None) -> None:
     """Update packages to their latest versions.
-    
+
     Updates packages listed in ayaiay.json to their latest available versions.
     If no package name is provided, updates all packages.
-    
+
     Examples:
         ayaiay update                    # Update all packages
         ayaiay update acme/code-reviewer # Update specific package
@@ -487,32 +527,32 @@ def update(ctx: click.Context, package_name: str | None, path: Path | None) -> N
     config: Config = ctx.obj["config"]
     lock_file_path = (path / "ayaiay.json") if path else None
     pm = PackageManager(config=config, lock_file_path=lock_file_path)
-    
+
     if not pm.lock_file_path.exists():
         print_error(f"No lock file found: {pm.lock_file_path}")
-        console.print(f"[dim]Use 'ayaiay init' to create one.[/dim]")
+        console.print("[dim]Use 'ayaiay init' to create one.[/dim]")
         sys.exit(1)
-    
+
     target = package_name or "all packages"
     console.print(f"[dim]Updating {target}...[/dim]")
-    
+
     results = pm.update(package_name=package_name)
-    
+
     if not results:
         console.print("[dim]No packages to update.[/dim]")
         return
-    
+
     table = Table(title="Update Results")
     table.add_column("Package", style="cyan")
     table.add_column("Status", style="bold")
     table.add_column("Message")
-    
+
     for pkg_name, success, message in results:
         status = "[green]✓[/green]" if success else "[red]✗[/red]"
         table.add_row(pkg_name, status, message)
-    
+
     console.print(table)
-    
+
     failed = [r for r in results if not r[1]]
     if failed:
         sys.exit(1)
