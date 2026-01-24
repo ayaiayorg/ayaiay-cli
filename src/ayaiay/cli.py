@@ -15,6 +15,7 @@ from ayaiay import __version__
 from ayaiay.client import AyAiAyClient, AyAiAyError
 from ayaiay.config import Config
 from ayaiay.installer import Installer, PackReference
+from ayaiay.package_manager import PackageManager
 from ayaiay.validator import validate_manifest
 
 console = Console()
@@ -339,6 +340,182 @@ def show(ctx: click.Context, reference: str) -> None:
 
         if len(versions) > 10:
             console.print(f"[dim]... and {len(versions) - 10} more versions[/dim]")
+
+
+@main.command()
+@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json (default: current directory)")
+@click.pass_context
+def init(ctx: click.Context, path: Path | None) -> None:
+    """Initialize a new ayaiay.json file for package management.
+    
+    This creates a lock file that tracks all installed packs with their versions,
+    similar to composer.json in PHP or package.json in Node.js.
+    
+    Example:
+        ayaiay init
+        ayaiay init --path /path/to/project
+    """
+    lock_file_path = (path / "ayaiay.json") if path else None
+    pm = PackageManager(lock_file_path=lock_file_path)
+    
+    if pm.init():
+        print_success(f"Created {pm.lock_file_path}")
+        console.print(f"[dim]Use 'ayaiay add <package>' to add packages to your project.[/dim]")
+    else:
+        print_error(f"Lock file already exists: {pm.lock_file_path}")
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("reference")
+@click.option("--force", "-f", is_flag=True, help="Force reinstall if already installed")
+@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json directory")
+@click.pass_context
+def add(ctx: click.Context, reference: str, force: bool, path: Path | None) -> None:
+    """Add a package to ayaiay.json and install it.
+    
+    REFERENCE format: publisher/pack-name[@version]
+    
+    The package will be added to ayaiay.json and installed to the local directory.
+    This allows you to track all dependencies in one file.
+    
+    Examples:
+        ayaiay add acme/code-reviewer
+        ayaiay add acme/code-reviewer@1.0.0
+        ayaiay add acme/code-reviewer --force
+    """
+    config: Config = ctx.obj["config"]
+    lock_file_path = (path / "ayaiay.json") if path else None
+    pm = PackageManager(config=config, lock_file_path=lock_file_path)
+    
+    console.print(f"[dim]Adding {reference} to {pm.lock_file_path}...[/dim]")
+    
+    success, message, result = pm.add_package(reference, force=force)
+    
+    if success:
+        print_success(message)
+        if result.install_path:
+            console.print(f"[dim]Location: {result.install_path}[/dim]")
+    else:
+        print_error(message)
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("reference")
+@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json directory")
+@click.pass_context
+def remove(ctx: click.Context, reference: str, path: Path | None) -> None:
+    """Remove a package from ayaiay.json and uninstall it.
+    
+    REFERENCE format: publisher/pack-name
+    
+    Examples:
+        ayaiay remove acme/code-reviewer
+    """
+    config: Config = ctx.obj["config"]
+    lock_file_path = (path / "ayaiay.json") if path else None
+    pm = PackageManager(config=config, lock_file_path=lock_file_path)
+    
+    success, message = pm.remove_package(reference)
+    
+    if success:
+        print_success(message)
+    else:
+        print_error(message)
+        sys.exit(1)
+
+
+@main.command()
+@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json directory")
+@click.pass_context
+def sync(ctx: click.Context, path: Path | None) -> None:
+    """Sync installed packages with ayaiay.json.
+    
+    Installs all packages listed in ayaiay.json that aren't currently installed.
+    Useful after cloning a project or checking out a different branch.
+    
+    Example:
+        ayaiay sync
+    """
+    config: Config = ctx.obj["config"]
+    lock_file_path = (path / "ayaiay.json") if path else None
+    pm = PackageManager(config=config, lock_file_path=lock_file_path)
+    
+    if not pm.lock_file_path.exists():
+        print_error(f"No lock file found: {pm.lock_file_path}")
+        console.print(f"[dim]Use 'ayaiay init' to create one.[/dim]")
+        sys.exit(1)
+    
+    console.print(f"[dim]Syncing packages from {pm.lock_file_path}...[/dim]")
+    results = pm.sync()
+    
+    if not results:
+        console.print("[dim]No packages to sync.[/dim]")
+        return
+    
+    table = Table(title="Sync Results")
+    table.add_column("Package", style="cyan")
+    table.add_column("Status", style="bold")
+    table.add_column("Message")
+    
+    for package_name, success, message in results:
+        status = "[green]✓[/green]" if success else "[red]✗[/red]"
+        table.add_row(package_name, status, message)
+    
+    console.print(table)
+    
+    failed = [r for r in results if not r[1]]
+    if failed:
+        sys.exit(1)
+
+
+@main.command()
+@click.argument("package_name", required=False)
+@click.option("--path", "-p", type=click.Path(path_type=Path), help="Path to ayaiay.json directory")
+@click.pass_context
+def update(ctx: click.Context, package_name: str | None, path: Path | None) -> None:
+    """Update packages to their latest versions.
+    
+    Updates packages listed in ayaiay.json to their latest available versions.
+    If no package name is provided, updates all packages.
+    
+    Examples:
+        ayaiay update                    # Update all packages
+        ayaiay update acme/code-reviewer # Update specific package
+    """
+    config: Config = ctx.obj["config"]
+    lock_file_path = (path / "ayaiay.json") if path else None
+    pm = PackageManager(config=config, lock_file_path=lock_file_path)
+    
+    if not pm.lock_file_path.exists():
+        print_error(f"No lock file found: {pm.lock_file_path}")
+        console.print(f"[dim]Use 'ayaiay init' to create one.[/dim]")
+        sys.exit(1)
+    
+    target = package_name or "all packages"
+    console.print(f"[dim]Updating {target}...[/dim]")
+    
+    results = pm.update(package_name=package_name)
+    
+    if not results:
+        console.print("[dim]No packages to update.[/dim]")
+        return
+    
+    table = Table(title="Update Results")
+    table.add_column("Package", style="cyan")
+    table.add_column("Status", style="bold")
+    table.add_column("Message")
+    
+    for pkg_name, success, message in results:
+        status = "[green]✓[/green]" if success else "[red]✗[/red]"
+        table.add_row(pkg_name, status, message)
+    
+    console.print(table)
+    
+    failed = [r for r in results if not r[1]]
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
