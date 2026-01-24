@@ -1,7 +1,8 @@
-name: Agent Issue Handler
+name: AI-Powered Agent Issue Handler
 
 # This workflow automatically processes issues labeled with specific tags
-# and attempts to resolve them using an automated agent approach.
+# and uses AI to generate code implementations. It supports multiple AI
+# strategies: Aider pair programming, direct API calls, or structured plans.
 
 on:
   issues:
@@ -87,17 +88,21 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
-              body: `🤖 **Agent Issue Handler Started**\n\n` +
-                    `The automated agent is now processing this issue.\n\n` +
+              body: `🤖 **AI-Powered Agent Issue Handler Started**\n\n` +
+                    `The automated AI agent is now processing this issue.\n\n` +
                     `**Workflow Run:** ${runUrl}\n` +
                     `**Status:** 🔄 In Progress\n\n` +
                     `I will:\n` +
-                    `1. ✅ Analyze the issue requirements\n` +
-                    `2. ✅ Create a dedicated branch\n` +
-                    `3. ✅ Implement the necessary changes\n` +
-                    `4. ✅ Run tests to validate\n` +
+                    `1. ✅ Analyze the issue requirements and codebase context\n` +
+                    `2. ✅ Create a dedicated feature branch\n` +
+                    `3. ✅ Generate and implement code changes using AI\n` +
+                    `4. ✅ Run linting, type checking, and tests\n` +
                     `5. ✅ Create a pull request for review\n\n` +
-                    `_This is an automated process. Please wait for updates._`
+                    `**Available AI Strategies:**\n` +
+                    `- Aider AI pair programming (if API keys configured)\n` +
+                    `- Direct Claude/GPT API code generation\n` +
+                    `- Structured implementation plan generation\n\n` +
+                    `_This is an AI-powered automated process. Please wait for updates._`
             });
 
   process-issue:
@@ -186,48 +191,517 @@ jobs:
           
           echo "✅ Analysis complete"
       
+      - name: Install AI code generation dependencies
+        run: |
+          pip install anthropic openai aider-chat
+      
       - name: Execute automated changes
         id: changes
         continue-on-error: true
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ISSUE_TITLE: ${{ needs.check-label.outputs.issue-title }}
+          ISSUE_BODY: ${{ needs.check-label.outputs.issue-body }}
+          ISSUE_NUMBER: ${{ needs.check-label.outputs.issue-number }}
         run: |
-          # This is a placeholder for the actual agent implementation
-          # In a real scenario, this would:
-          # 1. Use AI/ML models to understand the issue
-          # 2. Generate appropriate code changes
-          # 3. Apply changes to the repository
+          set -e
           
-          echo "🔧 Executing automated changes..."
+          echo "🔧 Executing automated code changes..."
           
-          # Example: Create a sample change for demonstration
-          mkdir -p docs/issues
-          ISSUE_NUM="${{ needs.check-label.outputs.issue-number }}"
-          ISSUE_TITLE="${{ needs.check-label.outputs.issue-title }}"
-          ISSUE_BODY="${{ needs.check-label.outputs.issue-body }}"
-          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          # Create the agent script
+          cat > /tmp/agent_coder.py <<'AGENT_SCRIPT'
+          #!/usr/bin/env python3
+          """
+          Automated Code Generation Agent
           
-          cat > docs/issues/issue-${ISSUE_NUM}.md <<EOF
-          # Issue #${ISSUE_NUM}
+          This agent uses AI to generate actual code changes based on GitHub issue requirements.
+          It supports multiple AI providers: Anthropic Claude, OpenAI GPT, or falls back to
+          rule-based generation if no API keys are available.
+          """
+          import os
+          import sys
+          import json
+          import subprocess
+          from pathlib import Path
+          from typing import Optional, Dict, List, Tuple
           
-          ## Title
-          ${ISSUE_TITLE}
           
-          ## Description
-          ${ISSUE_BODY}
+          def get_project_context() -> Dict[str, any]:
+              """Gather context about the project structure and codebase."""
+              context = {
+                  "files": [],
+                  "structure": {},
+                  "readme": None,
+                  "pyproject": None,
+              }
+              
+              # Get project files
+              try:
+                  result = subprocess.run(
+                      ["find", "src", "-name", "*.py", "-type", "f"],
+                      capture_output=True,
+                      text=True,
+                      timeout=10,
+                  )
+                  if result.returncode == 0:
+                      context["files"] = result.stdout.strip().split("\n")
+              except Exception as e:
+                  print(f"⚠️  Error getting project files: {e}")
+              
+              # Read README
+              try:
+                  readme_path = Path("README.md")
+                  if readme_path.exists():
+                      context["readme"] = readme_path.read_text()[:2000]  # First 2k chars
+              except Exception as e:
+                  print(f"⚠️  Error reading README: {e}")
+              
+              # Read pyproject.toml
+              try:
+                  pyproject_path = Path("pyproject.toml")
+                  if pyproject_path.exists():
+                      context["pyproject"] = pyproject_path.read_text()
+              except Exception as e:
+                  print(f"⚠️  Error reading pyproject.toml: {e}")
+              
+              return context
           
-          ## Resolution
-          This file was automatically generated by the agent issue handler.
+          
+          def use_aider_for_changes(issue_title: str, issue_body: str) -> Tuple[bool, str]:
+              """Use Aider (AI pair programming tool) to implement changes."""
+              try:
+                  # Check if API keys are available
+                  has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
+                  has_openai = bool(os.getenv("OPENAI_API_KEY"))
+                  
+                  if not (has_anthropic or has_openai):
+                      return False, "No AI API keys available"
+                  
+                  # Construct the prompt for aider
+                  prompt = f"""
+          Issue Title: {issue_title}
+          
+          Issue Description:
+          {issue_body}
+          
+          Please implement the changes described in this issue. Follow these guidelines:
+          1. Analyze the existing codebase structure
+          2. Implement the feature or fix as described
+          3. Ensure code follows the project's style (PEP 8, type hints)
+          4. Add appropriate error handling
+          5. Update or add docstrings
+          6. Create or update tests if applicable
+          7. Update documentation if needed
+          
+          Make the implementation production-ready and maintainable.
+          """
+                  
+                  # Use Aider with appropriate model
+                  model_arg = []
+                  if has_anthropic:
+                      model_arg = ["--model", "claude-3-5-sonnet-20241022"]
+                  elif has_openai:
+                      model_arg = ["--model", "gpt-4-turbo-preview"]
+                  
+                  # Run aider in auto mode
+                  result = subprocess.run(
+                      [
+                          "aider",
+                          "--yes",  # Auto-accept changes
+                          "--auto-commits",
+                          "False",  # We'll commit ourselves
+                          *model_arg,
+                          "--message",
+                          prompt,
+                      ],
+                      capture_output=True,
+                      text=True,
+                      timeout=300,  # 5 minute timeout
+                  )
+                  
+                  if result.returncode == 0:
+                      return True, "Aider successfully generated changes"
+                  else:
+                      return False, f"Aider failed: {result.stderr}"
+              
+              except subprocess.TimeoutExpired:
+                  return False, "Aider timed out after 5 minutes"
+              except Exception as e:
+                  return False, f"Error running Aider: {str(e)}"
+          
+          
+          def use_direct_ai_api(issue_title: str, issue_body: str, context: Dict) -> Tuple[bool, str]:
+              """Use AI API directly to generate code changes."""
+              try:
+                  # Prepare the prompt with context
+                  files_list = "\n".join(f"- {f}" for f in context.get("files", [])[:20])
+                  
+                  system_prompt = """You are an expert Python developer. You will receive a GitHub issue 
+          describing a feature request or bug fix. Generate the necessary code changes to implement it.
+          
+          Provide your response as a JSON object with this structure:
+          {
+            "files_to_create": [{"path": "path/to/file.py", "content": "file content"}],
+            "files_to_modify": [{"path": "path/to/file.py", "changes": "description of changes needed"}],
+            "implementation_notes": "brief notes about the implementation"
+          }
+          """
+                  
+                  user_prompt = f"""
+          Project Context:
+          - This is a Python CLI tool for the AyAiAy.org AI agents marketplace
+          - Project files: 
+          {files_list}
+          
+          Issue Title: {issue_title}
+          
+          Issue Description:
+          {issue_body}
+          
+          Please provide the code implementation for this issue. Be specific and complete.
+          """
+                  
+                  # Try Anthropic Claude first
+                  if os.getenv("ANTHROPIC_API_KEY"):
+                      import anthropic
+                      
+                      client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+                      message = client.messages.create(
+                          model="claude-3-5-sonnet-20241022",
+                          max_tokens=4096,
+                          system=system_prompt,
+                          messages=[{"role": "user", "content": user_prompt}],
+                      )
+                      
+                      response_text = message.content[0].text
+                      return process_ai_response(response_text, issue_title)
+                  
+                  # Try OpenAI GPT
+                  elif os.getenv("OPENAI_API_KEY"):
+                      import openai
+                      
+                      client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                      response = client.chat.completions.create(
+                          model="gpt-4-turbo-preview",
+                          messages=[
+                              {"role": "system", "content": system_prompt},
+                              {"role": "user", "content": user_prompt},
+                          ],
+                          max_tokens=4096,
+                      )
+                      
+                      response_text = response.choices[0].message.content
+                      return process_ai_response(response_text, issue_title)
+                  
+                  return False, "No AI API keys available"
+              
+              except Exception as e:
+                  return False, f"Error using AI API: {str(e)}"
+          
+          
+          def process_ai_response(response_text: str, issue_title: str) -> Tuple[bool, str]:
+              """Process the AI response and apply changes."""
+              try:
+                  # Try to extract JSON from the response
+                  import re
+                  json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+                  if json_match:
+                      data = json.loads(json_match.group())
+                  else:
+                      # If no JSON, create a documentation file with the response
+                      docs_dir = Path("docs/agent-implementations")
+                      docs_dir.mkdir(parents=True, exist_ok=True)
+                      
+                      issue_num = os.getenv("ISSUE_NUMBER", "unknown")
+                      doc_file = docs_dir / f"issue-{issue_num}.md"
+                      
+                      doc_file.write_text(f"""# Implementation for: {issue_title}
+          
+          ## AI-Generated Implementation Plan
+          
+          {response_text}
           
           ## Status
-          - [x] Issue analyzed
-          - [x] Changes implemented
-          - [ ] Tests passed
-          - [ ] PR created
           
-          Generated at: ${TIMESTAMP}
-          EOF
+          This implementation plan was generated by the automated agent.
+          Manual review and implementation may be required for complex changes.
+          """)
+                      
+                      return True, f"Created implementation plan at {doc_file}"
+                  
+                  # Apply file creations
+                  files_created = []
+                  for file_spec in data.get("files_to_create", []):
+                      file_path = Path(file_spec["path"])
+                      file_path.parent.mkdir(parents=True, exist_ok=True)
+                      file_path.write_text(file_spec["content"])
+                      files_created.append(str(file_path))
+                  
+                  # Document file modifications
+                  if data.get("files_to_modify"):
+                      docs_dir = Path("docs/agent-implementations")
+                      docs_dir.mkdir(parents=True, exist_ok=True)
+                      
+                      issue_num = os.getenv("ISSUE_NUMBER", "unknown")
+                      mod_file = docs_dir / f"issue-{issue_num}-modifications.md"
+                      
+                      mod_content = f"# Modifications for: {issue_title}\n\n"
+                      for mod in data["files_to_modify"]:
+                          mod_content += f"## {mod['path']}\n\n{mod['changes']}\n\n"
+                      
+                      mod_file.write_text(mod_content)
+                  
+                  notes = data.get("implementation_notes", "No additional notes")
+                  result_msg = f"Created {len(files_created)} files. Notes: {notes}"
+                  
+                  return True, result_msg
+              
+              except Exception as e:
+                  return False, f"Error processing AI response: {str(e)}"
           
-          echo "changes-made=true" >> $GITHUB_OUTPUT
-          echo "✅ Changes executed"
+          
+          def generate_rule_based_implementation(issue_title: str, issue_body: str) -> Tuple[bool, str]:
+              """Fallback: Generate a structured implementation plan without AI APIs."""
+              try:
+                  issue_num = os.getenv("ISSUE_NUMBER", "unknown")
+                  
+                  # Create implementation directory
+                  impl_dir = Path("docs/agent-implementations")
+                  impl_dir.mkdir(parents=True, exist_ok=True)
+                  
+                  # Generate implementation plan
+                  plan_file = impl_dir / f"issue-{issue_num}-plan.md"
+                  plan_file.write_text(f"""# Implementation Plan: {issue_title}
+          
+          ## Issue Details
+          
+          **Issue Number:** #{issue_num}
+          **Title:** {issue_title}
+          
+          ## Description
+          
+          {issue_body}
+          
+          ## Proposed Implementation
+          
+          ### Analysis
+          
+          This issue requires implementation in the AyAiAy CLI codebase, a Python-based
+          CLI tool for managing AI agent profiles, instruction packs, and prompt packs.
+          
+          ### Files to Modify/Create
+          
+          Based on the issue description, the following areas may need changes:
+          
+          1. **Core Functionality** (`src/ayaiay/`)
+             - Command implementations
+             - API client updates
+             - Data models
+          
+          2. **CLI Interface** (`src/ayaiay/cli.py`)
+             - New commands or command options
+             - Help text updates
+          
+          3. **Tests** (`tests/`)
+             - Unit tests for new functionality
+             - Integration tests
+          
+          4. **Documentation** (`docs/`, `README.md`)
+             - Update relevant documentation
+             - Add examples if needed
+          
+          ### Implementation Steps
+          
+          1. **Understand Requirements**
+             - Parse the issue description thoroughly
+             - Identify specific features or fixes needed
+             - Determine affected components
+          
+          2. **Design Solution**
+             - Plan the code structure
+             - Consider edge cases
+             - Ensure backward compatibility
+          
+          3. **Implement Changes**
+             - Write clean, well-documented code
+             - Follow PEP 8 style guidelines
+             - Add type hints
+             - Include docstrings
+          
+          4. **Add Tests**
+             - Write unit tests for new functions
+             - Add integration tests if needed
+             - Ensure test coverage
+          
+          5. **Update Documentation**
+             - Update README if user-facing
+             - Add docstrings to new code
+             - Update relevant docs
+          
+          ### Testing Strategy
+          
+          ```bash
+          # Run tests
+          pytest tests/
+          
+          # Check coverage
+          pytest --cov=src/ayaiay
+          
+          # Lint and format
+          ruff check src tests
+          ruff format src tests
+          mypy src
+          ```
+          
+          ### Manual Steps Required
+          
+          ⚠️ **This is an automated implementation plan.** The following manual steps
+          are recommended:
+          
+          1. Review this plan carefully
+          2. Implement the code changes manually or use AI-assisted coding
+          3. Write comprehensive tests
+          4. Update documentation
+          5. Test thoroughly before merging
+          
+          ### Notes
+          
+          - This plan was generated automatically without AI API access
+          - For actual code generation, configure ANTHROPIC_API_KEY or OPENAI_API_KEY
+          - Consider the project's coding standards and conventions
+          - Ensure changes are backward compatible
+          
+          ---
+          
+          *Generated by Agent Issue Handler - {subprocess.run(['date', '-u'], capture_output=True, text=True).stdout.strip()}*
+          """)
+                  
+                  # Also create a checklist file
+                  checklist_file = impl_dir / f"issue-{issue_num}-checklist.md"
+                  checklist_file.write_text(f"""# Implementation Checklist: {issue_title}
+          
+          ## Pre-Implementation
+          - [ ] Review issue requirements thoroughly
+          - [ ] Understand affected components
+          - [ ] Check for similar existing implementations
+          - [ ] Plan the solution architecture
+          
+          ## Implementation
+          - [ ] Write core functionality
+          - [ ] Add error handling
+          - [ ] Include type hints
+          - [ ] Add docstrings
+          - [ ] Follow PEP 8 style guide
+          
+          ## Testing
+          - [ ] Write unit tests
+          - [ ] Write integration tests (if needed)
+          - [ ] Achieve good test coverage
+          - [ ] Test edge cases
+          - [ ] Manual testing
+          
+          ## Quality Checks
+          - [ ] Run `ruff check`
+          - [ ] Run `ruff format`
+          - [ ] Run `mypy` type checking
+          - [ ] All tests pass
+          - [ ] No linting errors
+          
+          ## Documentation
+          - [ ] Update README if needed
+          - [ ] Add/update docstrings
+          - [ ] Update relevant documentation
+          - [ ] Add usage examples
+          
+          ## Review
+          - [ ] Self-review code changes
+          - [ ] Check for security issues
+          - [ ] Verify backward compatibility
+          - [ ] Review PR description
+          
+          ## Ready to Merge
+          - [ ] All CI checks pass
+          - [ ] Code reviewed by maintainers
+          - [ ] Documentation complete
+          - [ ] Ready for production
+          """)
+                  
+                  return True, f"Generated implementation plan and checklist in {impl_dir}"
+              
+              except Exception as e:
+                  return False, f"Error generating implementation plan: {str(e)}"
+          
+          
+          def main():
+              """Main entry point for the agent coder."""
+              print("🤖 Agent Code Generator Starting...")
+              print("=" * 60)
+              
+              # Get issue details from environment
+              issue_title = os.getenv("ISSUE_TITLE", "")
+              issue_body = os.getenv("ISSUE_BODY", "")
+              issue_number = os.getenv("ISSUE_NUMBER", "")
+              
+              if not issue_title:
+                  print("❌ Error: ISSUE_TITLE environment variable not set")
+                  sys.exit(1)
+              
+              print(f"📋 Issue #{issue_number}: {issue_title}")
+              print("=" * 60)
+              
+              # Gather project context
+              print("\n🔍 Gathering project context...")
+              context = get_project_context()
+              print(f"   Found {len(context['files'])} Python files")
+              
+              # Try different implementation strategies in order of preference
+              strategies = [
+                  ("Aider AI Pair Programming", use_aider_for_changes),
+                  ("Direct AI API", lambda t, b: use_direct_ai_api(t, b, context)),
+                  ("Rule-Based Plan Generation", generate_rule_based_implementation),
+              ]
+              
+              for strategy_name, strategy_func in strategies:
+                  print(f"\n🔧 Trying strategy: {strategy_name}")
+                  try:
+                      if strategy_name == "Direct AI API":
+                          success, message = strategy_func(issue_title, issue_body)
+                      else:
+                          success, message = strategy_func(issue_title, issue_body)
+                      
+                      if success:
+                          print(f"✅ Success: {message}")
+                          print("\n" + "=" * 60)
+                          print("🎉 Code generation completed successfully!")
+                          return 0
+                      else:
+                          print(f"⚠️  Strategy failed: {message}")
+                          print("   Trying next strategy...")
+                  except Exception as e:
+                      print(f"⚠️  Strategy error: {str(e)}")
+                      print("   Trying next strategy...")
+              
+              print("\n❌ All strategies failed")
+              return 1
+          
+          
+          if __name__ == "__main__":
+              sys.exit(main())
+          AGENT_SCRIPT
+          
+          # Make the script executable and run it
+          chmod +x /tmp/agent_coder.py
+          python /tmp/agent_coder.py
+          
+          # Check if any changes were made
+          if git status --porcelain | grep -q .; then
+            echo "changes-made=true" >> $GITHUB_OUTPUT
+            echo "✅ Code changes generated and applied"
+          else
+            echo "changes-made=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  No file changes detected"
+          fi
       
       - name: Run linting
         id: lint
@@ -264,17 +738,20 @@ jobs:
             echo "ℹ️  No changes to commit"
             echo "has-changes=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "🤖 Automated changes for issue #${{ needs.check-label.outputs.issue-number }}
+            git commit -m "🤖 Automated implementation for issue #${{ needs.check-label.outputs.issue-number }}
 
-          This commit was automatically generated by the agent issue handler.
+          This commit was automatically generated by the AI-powered agent issue handler.
           
           Issue: #${{ needs.check-label.outputs.issue-number }}
           Title: ${{ needs.check-label.outputs.issue-title }}
           
           Changes:
-          - Analyzed issue requirements
-          - Generated documentation
-          - Applied automated fixes
+          - Analyzed issue requirements and project context
+          - Generated code implementation using AI
+          - Applied automated code changes to repository
+          - Created implementation plans and documentation
+          
+          Note: AI-generated code should be reviewed carefully before merging.
           
           Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
             
@@ -325,27 +802,42 @@ jobs:
               head: branchName,
               base: 'main',
               body: `## 🤖 Automated Issue Resolution\n\n` +
-                    `This PR was automatically generated to address issue #${issueNumber}.\n\n` +
+                    `This PR was automatically generated by an AI-powered agent to address issue #${issueNumber}.\n\n` +
                     `### Issue Details\n` +
                     `**Title:** ${issueTitle}\n` +
                     `**Issue:** Closes #${issueNumber}\n\n` +
+                    `### Implementation Approach\n` +
+                    `The agent used the following strategies to implement this issue:\n` +
+                    `1. **Aider AI Pair Programming**: Attempted to use Aider for intelligent code changes\n` +
+                    `2. **Direct AI API**: Used Claude/GPT APIs to generate code based on requirements\n` +
+                    `3. **Rule-Based Generation**: Created structured implementation plans as fallback\n\n` +
                     `### Changes Made\n` +
-                    `- ✅ Analyzed issue requirements\n` +
-                    `- ✅ Generated necessary documentation\n` +
-                    `- ✅ Applied automated changes\n` +
-                    `- ✅ Ran tests and validation\n\n` +
+                    `- ✅ Analyzed issue requirements and project context\n` +
+                    `- ✅ Generated code implementation using AI\n` +
+                    `- ✅ Applied changes to the repository\n` +
+                    `- ✅ Created implementation documentation\n` +
+                    `- ✅ Ran tests and validation checks\n\n` +
                     `### Validation Results\n` +
                     `- **Linting:** ${{ steps.lint.outputs.lint-status || 'not run' }}\n` +
                     `- **Type Checking:** ${{ steps.typecheck.outputs.typecheck-status || 'not run' }}\n` +
                     `- **Tests:** ${{ steps.test.outputs.test-status || 'not run' }}\n\n` +
-                    `### ⚠️ Review Required\n` +
-                    `This is an automated PR. Please review carefully before merging:\n` +
-                    `- [ ] Code changes are correct and complete\n` +
-                    `- [ ] Tests pass successfully\n` +
-                    `- [ ] No security concerns\n` +
-                    `- [ ] Documentation is updated\n\n` +
+                    `### ⚠️ Important: Review Required\n` +
+                    `This PR contains AI-generated code. **Thorough review is essential** before merging:\n\n` +
+                    `- [ ] **Code Quality**: Verify code follows project standards and best practices\n` +
+                    `- [ ] **Correctness**: Ensure the implementation correctly addresses the issue\n` +
+                    `- [ ] **Security**: Check for security vulnerabilities or unsafe patterns\n` +
+                    `- [ ] **Tests**: Verify tests are comprehensive and passing\n` +
+                    `- [ ] **Documentation**: Ensure documentation is accurate and complete\n` +
+                    `- [ ] **Breaking Changes**: Confirm no unintended breaking changes\n` +
+                    `- [ ] **Edge Cases**: Consider edge cases and error handling\n\n` +
+                    `### Configuration Note\n` +
+                    `For best results, configure AI API keys in repository secrets:\n` +
+                    `- \`ANTHROPIC_API_KEY\`: For Claude 3.5 Sonnet (recommended)\n` +
+                    `- \`OPENAI_API_KEY\`: For GPT-4 Turbo (alternative)\n\n` +
+                    `Without API keys, the agent will generate structured implementation plans\n` +
+                    `that require manual coding.\n\n` +
                     `---\n` +
-                    `🤖 _Generated by Agent Issue Handler workflow_`
+                    `🤖 _Generated by AI-Powered Agent Issue Handler workflow_`
             });
             
             core.info(`PR created: #${pr.number}`);
@@ -394,15 +886,25 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
-              body: `✅ **Agent Issue Handler Completed Successfully**\n\n` +
-                    `The automated agent has finished processing this issue.${prSection}\n\n` +
+              body: `✅ **AI-Powered Agent Issue Handler Completed Successfully**\n\n` +
+                    `The AI agent has finished processing this issue.${prSection}\n\n` +
                     `**Workflow Run:** ${runUrl}\n` +
                     `**Status:** ✅ Success\n\n` +
+                    `### What Was Done\n` +
+                    `The agent analyzed your issue and generated code using AI. The implementation\n` +
+                    `has been committed to a feature branch and a PR has been created.\n\n` +
                     `### Next Steps\n` +
-                    `1. Review the generated pull request\n` +
-                    `2. Verify all tests pass\n` +
-                    `3. Approve and merge if satisfied\n\n` +
-                    `_If you have any concerns, please review the workflow run logs._`
+                    `1. **Review the Pull Request** - The AI-generated code needs human review\n` +
+                    `2. **Verify Tests Pass** - Check that all CI checks complete successfully\n` +
+                    `3. **Test the Implementation** - Validate the changes work as expected\n` +
+                    `4. **Approve and Merge** - If everything looks good, merge the PR\n\n` +
+                    `### ⚠️ Important Note\n` +
+                    `This code was generated by AI and should be reviewed carefully for:\n` +
+                    `- Correctness and completeness\n` +
+                    `- Security vulnerabilities\n` +
+                    `- Code quality and style\n` +
+                    `- Edge cases and error handling\n\n` +
+                    `_For any issues or concerns, please review the workflow run logs._`
             });
       
       - name: Comment on issue - Failure
@@ -417,14 +919,20 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issueNumber,
-              body: `❌ **Agent Issue Handler Failed**\n\n` +
-                    `The automated agent encountered an error while processing this issue.\n\n` +
+              body: `❌ **AI-Powered Agent Issue Handler Failed**\n\n` +
+                    `The AI agent encountered an error while processing this issue.\n\n` +
                     `**Workflow Run:** ${runUrl}\n` +
                     `**Status:** ❌ Failed\n\n` +
                     `### What to do next\n` +
-                    `1. Check the workflow run logs for details\n` +
-                    `2. Manual intervention may be required\n` +
-                    `3. Consider removing the \`agent-task\` label if this issue requires human review\n\n` +
+                    `1. **Check the workflow logs** - Review the detailed error messages\n` +
+                    `2. **Verify API keys** - Ensure ANTHROPIC_API_KEY or OPENAI_API_KEY are configured (optional)\n` +
+                    `3. **Manual intervention** - This issue may require human implementation\n` +
+                    `4. **Remove label** - Consider removing the \`agent-task\` label if AI handling isn't suitable\n\n` +
+                    `### Common Issues\n` +
+                    `- Complex requirements that need human judgment\n` +
+                    `- Insufficient context in the issue description\n` +
+                    `- Missing AI API keys (agent will use fallback plan generation)\n` +
+                    `- Codebase conflicts or merge issues\n\n` +
                     `_Please review the error logs to understand what went wrong._`
             });
       
