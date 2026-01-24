@@ -268,6 +268,16 @@ jobs:
               return context
           
           
+          def sanitize_input(text: str) -> str:
+              """Sanitize user input to prevent command injection."""
+              if not text:
+                  return ""
+              # Remove null bytes and control characters except newlines/tabs
+              sanitized = "".join(char for char in text if char == '\n' or char == '\t' or (ord(char) >= 32 and ord(char) != 127))
+              # Limit length to prevent excessive input
+              return sanitized[:10000]
+          
+          
           def use_aider_for_changes(issue_title: str, issue_body: str) -> Tuple[bool, str]:
               """Use Aider (AI pair programming tool) to implement changes."""
               try:
@@ -278,12 +288,16 @@ jobs:
                   if not (has_anthropic or has_openai):
                       return False, "No AI API keys available"
                   
+                  # Sanitize inputs to prevent injection
+                  safe_title = sanitize_input(issue_title)
+                  safe_body = sanitize_input(issue_body)
+                  
                   # Construct the prompt for aider
                   prompt = f"""
-          Issue Title: {issue_title}
+          Issue Title: {safe_title}
           
           Issue Description:
-          {issue_body}
+          {safe_body}
           
           Please implement the changes described in this issue. Follow these guidelines:
           1. Analyze the existing codebase structure
@@ -304,7 +318,7 @@ jobs:
                   elif has_openai:
                       model_arg = ["--model", "gpt-4-turbo-preview"]
                   
-                  # Run aider in auto mode
+                  # Run aider in auto mode (shell=False for security)
                   result = subprocess.run(
                       [
                           "aider",
@@ -318,6 +332,7 @@ jobs:
                       capture_output=True,
                       text=True,
                       timeout=300,  # 5 minute timeout
+                      shell=False,  # Explicit for security
                   )
                   
                   if result.returncode == 0:
@@ -334,6 +349,10 @@ jobs:
           def use_direct_ai_api(issue_title: str, issue_body: str, context: Dict) -> Tuple[bool, str]:
               """Use AI API directly to generate code changes."""
               try:
+                  # Sanitize inputs to prevent injection
+                  safe_title = sanitize_input(issue_title)
+                  safe_body = sanitize_input(issue_body)
+                  
                   # Prepare the prompt with context
                   files_list = "\n".join(f"- {f}" for f in context.get("files", [])[:20])
                   
@@ -354,45 +373,53 @@ jobs:
           - Project files: 
           {files_list}
           
-          Issue Title: {issue_title}
+          Issue Title: {safe_title}
           
           Issue Description:
-          {issue_body}
+          {safe_body}
           
           Please provide the code implementation for this issue. Be specific and complete.
           """
                   
                   # Try Anthropic Claude first
                   if os.getenv("ANTHROPIC_API_KEY"):
-                      import anthropic
-                      
-                      client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-                      message = client.messages.create(
-                          model="claude-3-5-sonnet-20241022",
-                          max_tokens=4096,
-                          system=system_prompt,
-                          messages=[{"role": "user", "content": user_prompt}],
-                      )
-                      
-                      response_text = message.content[0].text
-                      return process_ai_response(response_text, issue_title)
+                      try:
+                          import anthropic
+                          
+                          client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+                          message = client.messages.create(
+                              model="claude-3-5-sonnet-20241022",
+                              max_tokens=4096,
+                              system=system_prompt,
+                              messages=[{"role": "user", "content": user_prompt}],
+                          )
+                          
+                          response_text = message.content[0].text
+                          return process_ai_response(response_text, issue_title)
+                      except Exception as api_error:
+                          print(f"⚠️  Anthropic API error: {api_error}")
+                          # Continue to OpenAI fallback
                   
                   # Try OpenAI GPT
-                  elif os.getenv("OPENAI_API_KEY"):
-                      import openai
-                      
-                      client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                      response = client.chat.completions.create(
-                          model="gpt-4-turbo-preview",
-                          messages=[
-                              {"role": "system", "content": system_prompt},
-                              {"role": "user", "content": user_prompt},
-                          ],
-                          max_tokens=4096,
-                      )
-                      
-                      response_text = response.choices[0].message.content
-                      return process_ai_response(response_text, issue_title)
+                  if os.getenv("OPENAI_API_KEY"):
+                      try:
+                          import openai
+                          
+                          client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+                          response = client.chat.completions.create(
+                              model="gpt-4-turbo-preview",
+                              messages=[
+                                  {"role": "system", "content": system_prompt},
+                                  {"role": "user", "content": user_prompt},
+                              ],
+                              max_tokens=4096,
+                          )
+                          
+                          response_text = response.choices[0].message.content
+                          return process_ai_response(response_text, issue_title)
+                      except Exception as api_error:
+                          print(f"⚠️  OpenAI API error: {api_error}")
+                          # Fall through to no API keys available message
                   
                   return False, "No AI API keys available"
               
@@ -574,7 +601,7 @@ jobs:
           
           ---
           
-          *Generated by Agent Issue Handler - {subprocess.run(['date', '-u'], capture_output=True, text=True).stdout.strip()}*
+          *Generated by Agent Issue Handler - {subprocess.run(['date', '-u'], capture_output=True, text=True, shell=False).stdout.strip()}*
           """)
                   
                   # Also create a checklist file
