@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ayaiay"
-version = "0.1.0"
+version = "1.0.1"
 description = "CLI and SDK for the AyAiAy.org AI agents marketplace"
 readme = "README.md"
 license = "GPL-3.0-only"
