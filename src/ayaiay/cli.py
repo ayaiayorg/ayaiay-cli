@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import click
+import httpx
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -92,6 +93,12 @@ def search(
                 page=page,
                 per_page=limit,
             )
+        except httpx.RequestError:
+            print_error(
+                "Unable to connect to the API. Please check your internet connection "
+                "and verify the API URL is correct."
+            )
+            sys.exit(1)
         except AyAiAyError as e:
             print_error(str(e))
             sys.exit(1)
@@ -305,6 +312,12 @@ def show(ctx: click.Context, reference: str) -> None:
         try:
             pack = client.get_pack(pack_ref.full_name)
             versions = client.get_pack_versions(pack_ref.full_name)
+        except httpx.RequestError:
+            print_error(
+                "Unable to connect to the API. Please check your internet connection "
+                "and verify the API URL is correct."
+            )
+            sys.exit(1)
         except AyAiAyError as e:
             print_error(str(e))
             sys.exit(1)

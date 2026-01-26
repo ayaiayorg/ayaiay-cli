@@ -94,6 +94,23 @@ class TestSearchCommand:
             call_kwargs = mock_client.search_packs.call_args.kwargs
             assert call_kwargs["pack_type"] == "agent"
 
+    def test_search_connection_error(self, runner: CliRunner) -> None:
+        """Test search handles connection errors gracefully."""
+        with patch("ayaiay.cli.AyAiAyClient") as mock_client_class:
+            import httpx
+
+            mock_client = MagicMock()
+            mock_client_class.return_value.__enter__.return_value = mock_client
+            mock_client.search_packs.side_effect = httpx.ConnectError(
+                "Connection failed"
+            )
+
+            result = runner.invoke(main, ["search", "test"])
+
+            assert result.exit_code == 1
+            assert "Unable to connect" in result.output
+            assert "internet connection" in result.output
+
 
 class TestValidateCommand:
     """Tests for the validate command."""
@@ -229,6 +246,25 @@ class TestListCommand:
             assert "test-user/pack-two" in result.output
             assert "1.0.0" in result.output
             assert "2.0.0" in result.output
+
+
+class TestShowCommand:
+    """Tests for the show command."""
+
+    def test_show_connection_error(self, runner: CliRunner) -> None:
+        """Test show handles connection errors gracefully."""
+        with patch("ayaiay.cli.AyAiAyClient") as mock_client_class:
+            import httpx
+
+            mock_client = MagicMock()
+            mock_client_class.return_value.__enter__.return_value = mock_client
+            mock_client.get_pack.side_effect = httpx.ConnectError("Connection failed")
+
+            result = runner.invoke(main, ["show", "test-user/test-pack"])
+
+            assert result.exit_code == 1
+            assert "Unable to connect" in result.output
+            assert "internet connection" in result.output
 
 
 class TestInfoCommand:
