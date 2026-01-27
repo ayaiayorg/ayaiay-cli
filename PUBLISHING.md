@@ -118,18 +118,22 @@ pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://
 
 ### Version Management
 
-Update the version in **both** files:
+Update the version in **both** files before publishing:
 
-1. `pyproject.toml`:
+1. **`pyproject.toml`** - Update the version field:
    ```toml
    [project]
-   version = "X.Y.Z"
+   name = "ayaiay"
+   version = "X.Y.Z"  # Update this line
+   description = "CLI and SDK for the AyAiAy.org AI agents marketplace"
    ```
 
-2. `src/ayaiay/__init__.py`:
+2. **`src/ayaiay/__init__.py`** - Update the version constant:
    ```python
-   __version__ = "X.Y.Z"
+   __version__ = "X.Y.Z"  # Update this line
    ```
+
+> **Note**: Both versions must match. Consider adding a pre-commit check or CI validation to ensure version consistency.
 
 ### Pre-Release Checklist
 
