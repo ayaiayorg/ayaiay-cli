@@ -314,7 +314,7 @@ This package uses GitHub Actions with [Trusted Publisher](https://docs.pypi.org/
 1. Update the version in `pyproject.toml` and `src/ayaiay/__init__.py`
 2. Run tests and linters
 3. Commit and push changes
-4. Create a GitHub Release with a tag matching the version (e.g., `v1.0.1`)
+4. Create a GitHub Release with a tag matching the version (e.g., `v1.0.2`)
 
 ## Automated Agent Workflow
 

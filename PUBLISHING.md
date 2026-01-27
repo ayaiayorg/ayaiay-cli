@@ -19,7 +19,7 @@ pip install git+https://github.com/ayaiayorg/ayaiay-cli.git
 Install a specific version (once tags are available):
 
 ```bash
-pip install git+https://github.com/ayaiayorg/ayaiay-cli.git@v1.0.1
+pip install git+https://github.com/ayaiayorg/ayaiay-cli.git@v1.0.2
 ```
 
 ### Option 2: Install from Source
@@ -103,7 +103,7 @@ pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://
    ```
 3. Create a GitHub Release:
    - Go to Releases → "Draft a new release"
-   - Create a new tag: `vX.Y.Z` (e.g., `v1.0.1`)
+   - Create a new tag: `vX.Y.Z` (e.g., `v1.0.0`)
    - Title: `Release vX.Y.Z`
    - Description: Release notes
    - Click "Publish release"
