@@ -38,6 +38,28 @@ def print_warning(message: str) -> None:
     console.print(f"[yellow]Warning:[/yellow] {message}")
 
 
+def handle_api_connection_error(config: Config, exception: httpx.RequestError) -> None:
+    """Handle API connection errors with informative message and exit.
+
+    Args:
+        config: Configuration object containing API URL.
+        exception: The httpx.RequestError that was raised.
+    """
+    error_msg = (
+        "Unable to connect to the API. This could be due to:\n"
+        "  • No internet connection\n"
+        "  • API service is not available or unreachable\n"
+        f"  • Invalid API URL: {config.api_base_url}\n\n"
+        "Try:\n"
+        "  • Check your internet connection\n"
+        "  • Verify the API URL with 'ayaiay info'\n"
+        "  • Set a custom API URL with --api-url or AYAIAY_API_URL\n"
+        f"  • See documentation at: https://github.com/ayaiayorg/ayaiay-cli#readme"
+    )
+    print_error(error_msg)
+    sys.exit(1)
+
+
 @click.group()
 @click.version_option(version=__version__, prog_name="ayaiay")
 @click.option(
@@ -93,12 +115,8 @@ def search(
                 page=page,
                 per_page=limit,
             )
-        except httpx.RequestError:
-            print_error(
-                "Unable to connect to the API. Please check your internet connection "
-                "and verify the API URL is correct."
-            )
-            sys.exit(1)
+        except httpx.RequestError as e:
+            handle_api_connection_error(config, e)
         except AyAiAyError as e:
             print_error(str(e))
             sys.exit(1)
@@ -312,12 +330,8 @@ def show(ctx: click.Context, reference: str) -> None:
         try:
             pack = client.get_pack(pack_ref.full_name)
             versions = client.get_pack_versions(pack_ref.full_name)
-        except httpx.RequestError:
-            print_error(
-                "Unable to connect to the API. Please check your internet connection "
-                "and verify the API URL is correct."
-            )
-            sys.exit(1)
+        except httpx.RequestError as e:
+            handle_api_connection_error(config, e)
         except AyAiAyError as e:
             print_error(str(e))
             sys.exit(1)
