@@ -94,6 +94,22 @@ class Installer:
         self.config = config or Config.load()
         self.client = AyAiAyClient(config=self.config)
 
+    def _format_connection_error(self, error: Exception) -> str:
+        """Format a connection error message.
+
+        Args:
+            error: The connection error exception.
+
+        Returns:
+            A user-friendly error message.
+        """
+        return (
+            f"Unable to connect to the AyAiAy API server at "
+            f"{self.config.api_base_url}. "
+            f"Please check your internet connection and try again. "
+            f"Error: {error}"
+        )
+
     def install(
         self,
         reference: str,
@@ -136,12 +152,7 @@ class Installer:
                 pack=None,
                 version=None,
                 install_path=None,
-                message=(
-                    f"Unable to connect to the AyAiAy API server at "
-                    f"{self.config.api_base_url}. "
-                    f"Please check your internet connection and try again. "
-                    f"Error: {e}"
-                ),
+                message=self._format_connection_error(e),
             )
 
         # Resolve version
@@ -174,12 +185,7 @@ class Installer:
                 pack=pack,
                 version=None,
                 install_path=None,
-                message=(
-                    f"Unable to connect to the AyAiAy API server at "
-                    f"{self.config.api_base_url}. "
-                    f"Please check your internet connection and try again. "
-                    f"Error: {e}"
-                ),
+                message=self._format_connection_error(e),
             )
 
         # Check if already installed
