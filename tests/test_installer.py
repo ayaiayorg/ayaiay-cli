@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from ayaiay.config import Config
-from ayaiay.installer import Installer, InstallResult
+from ayaiay.installer import Installer
 
 
 @pytest.fixture

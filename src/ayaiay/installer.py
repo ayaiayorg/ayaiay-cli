@@ -137,8 +137,10 @@ class Installer:
                 version=None,
                 install_path=None,
                 message=(
-                    f"Unable to connect to the AyAiAy API server at {self.config.api_base_url}. "
-                    f"Please check your internet connection and try again. Error: {e}"
+                    f"Unable to connect to the AyAiAy API server at "
+                    f"{self.config.api_base_url}. "
+                    f"Please check your internet connection and try again. "
+                    f"Error: {e}"
                 ),
             )
 
@@ -173,8 +175,10 @@ class Installer:
                 version=None,
                 install_path=None,
                 message=(
-                    f"Unable to connect to the AyAiAy API server at {self.config.api_base_url}. "
-                    f"Please check your internet connection and try again. Error: {e}"
+                    f"Unable to connect to the AyAiAy API server at "
+                    f"{self.config.api_base_url}. "
+                    f"Please check your internet connection and try again. "
+                    f"Error: {e}"
                 ),
             )
 
