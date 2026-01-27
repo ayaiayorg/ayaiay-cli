@@ -8,6 +8,17 @@ CLI and SDK for the [AyAiAy.org](https://ayaiay.org) AI agents marketplace - dis
 
 ## Installation
 
+> ⚠️ **Note**: The package is not yet published to PyPI. The first release is pending.
+> 
+> Until then, install directly from GitHub:
+> ```bash
+> pip install git+https://github.com/ayaiayorg/ayaiay-cli.git
+> ```
+> 
+> See [PUBLISHING.md](PUBLISHING.md) for more installation options and publishing instructions.
+
+**Once published to PyPI** (coming soon):
+
 ```bash
 pip install ayaiay
 ```
@@ -15,6 +26,8 @@ pip install ayaiay
 For development:
 
 ```bash
+git clone https://github.com/ayaiayorg/ayaiay-cli.git
+cd ayaiay-cli
 pip install -e ".[dev]"
 ```
 
@@ -286,20 +299,11 @@ ruff check .
 
 ### Publishing to PyPI
 
+> 📖 **For detailed publishing instructions, see [PUBLISHING.md](PUBLISHING.md)**
+
 This package uses GitHub Actions with [Trusted Publisher](https://docs.pypi.org/trusted-publishers/) (OIDC) for secure, tokenless publishing.
 
-**Setup (one-time):**
-
-1. Go to [PyPI](https://pypi.org) and create an account
-2. Navigate to your account's "Publishing" settings
-3. Add a new Trusted Publisher with:
-   - Owner: `ayaiayorg`
-   - Repository: `ayaiay-cli`
-   - Workflow: `publish.yml`
-   - Environment: `pypi`
-4. Repeat for [TestPyPI](https://test.pypi.org) with environment: `testpypi`
-
-**Publishing:**
+**Quick Reference:**
 
 - **Automatic:** Create a GitHub Release to publish to PyPI
 - **Manual (TestPyPI):** Run the "Publish to PyPI" workflow manually, selecting `testpypi`
@@ -307,9 +311,10 @@ This package uses GitHub Actions with [Trusted Publisher](https://docs.pypi.org/
 
 **Before releasing:**
 
-1. Update the version in `pyproject.toml`
-2. Commit and push changes
-3. Create a GitHub Release with a tag matching the version (e.g., `v0.1.0`)
+1. Update the version in `pyproject.toml` and `src/ayaiay/__init__.py`
+2. Run tests and linters
+3. Commit and push changes
+4. Create a GitHub Release with a tag matching the version (e.g., `v1.0.1`)
 
 ## Automated Agent Workflow
 
