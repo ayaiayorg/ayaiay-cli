@@ -6,11 +6,12 @@ from typing import Any, Final
 
 import httpx
 
+from ayaiay import __version__
 from ayaiay.config import Config
 from ayaiay.models import Pack, PackVersion, SearchResult
 
 # Constants
-USER_AGENT: Final[str] = "ayaiay-cli/0.1.0"
+USER_AGENT: Final[str] = f"ayaiay-cli/{__version__}"
 DEFAULT_PAGE: Final[int] = 1
 DEFAULT_PER_PAGE: Final[int] = 20
 MAX_PER_PAGE: Final[int] = 100
