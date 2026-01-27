@@ -205,6 +205,28 @@ class TestInstallCommand:
 
             assert result.exit_code == 1
 
+    def test_install_connection_error(self, runner: CliRunner) -> None:
+        """Test installation with connection error."""
+        with patch("ayaiay.cli.Installer") as mock_installer_class:
+            mock_installer = MagicMock()
+            mock_installer_class.return_value = mock_installer
+
+            mock_result = MagicMock()
+            mock_result.success = False
+            mock_result.message = (
+                "Unable to connect to the AyAiAy API server at https://api.ayaiay.org. "
+                "Please check your internet connection and try again."
+            )
+            mock_installer.install.return_value = mock_result
+
+            result = runner.invoke(main, ["install", "test-user/test-pack"])
+
+            assert result.exit_code == 1
+            assert (
+                "unable to connect" in result.output.lower()
+                or "error" in result.output.lower()
+            )
+
 
 class TestListCommand:
     """Tests for the list command."""
