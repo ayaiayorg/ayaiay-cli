@@ -40,7 +40,7 @@ def print_warning(message: str) -> None:
 
 def handle_api_connection_error(config: Config, exception: httpx.RequestError) -> None:
     """Handle API connection errors with informative message and exit.
-    
+
     Args:
         config: Configuration object containing API URL.
         exception: The httpx.RequestError that was raised.
