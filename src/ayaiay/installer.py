@@ -10,6 +10,8 @@ import tempfile
 from pathlib import Path
 from typing import Final, NamedTuple
 
+import httpx
+
 from ayaiay.client import AyAiAyClient, NotFoundError
 from ayaiay.config import Config
 from ayaiay.models import Pack, PackVersion
@@ -92,6 +94,22 @@ class Installer:
         self.config = config or Config.load()
         self.client = AyAiAyClient(config=self.config)
 
+    def _format_connection_error(self, error: Exception) -> str:
+        """Format a connection error message.
+
+        Args:
+            error: The connection error exception.
+
+        Returns:
+            A user-friendly error message.
+        """
+        return (
+            f"Unable to connect to the AyAiAy API server at "
+            f"{self.config.api_base_url}. "
+            f"Please check your internet connection and try again. "
+            f"Error: {error}"
+        )
+
     def install(
         self,
         reference: str,
@@ -128,6 +146,14 @@ class Installer:
                 install_path=None,
                 message=f"Pack not found: {pack_ref.full_name}",
             )
+        except (httpx.ConnectError, httpx.RequestError) as e:
+            return InstallResult(
+                success=False,
+                pack=None,
+                version=None,
+                install_path=None,
+                message=self._format_connection_error(e),
+            )
 
         # Resolve version
         version_str = pack_ref.version or "latest"
@@ -153,6 +179,14 @@ class Installer:
                 install_path=None,
                 message=f"Version not found: {pack_ref.versioned_name}",
             )
+        except (httpx.ConnectError, httpx.RequestError) as e:
+            return InstallResult(
+                success=False,
+                pack=pack,
+                version=None,
+                install_path=None,
+                message=self._format_connection_error(e),
+            )
 
         # Check if already installed
         install_path = self._get_install_path(pack_ref.publisher, pack_ref.name)
@@ -165,8 +199,7 @@ class Installer:
                     version=version,
                     install_path=install_path,
                     message=(
-                        f"Already installed: "
-                        f"{pack_ref.full_name}@{version.version}"
+                        f"Already installed: " f"{pack_ref.full_name}@{version.version}"
                     ),
                 )
 
