@@ -596,3 +596,82 @@ class TestPlatformFileCopying:
         assert uninstall_result.success is True
         assert not github_agent.exists()
         assert not claude_agent.exists()
+
+    def test_force_reinstall_updates_project_files(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that force reinstall properly updates project files."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version_1 = PackVersion(version="1.0.0")
+        version_2 = PackVersion(version="2.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        # First install with version 1.0.0
+        def fake_pull_v1(
+            _pack: Pack, _version: PackVersion, install_path: Path
+        ) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            agents_path = install_path / "agents"
+            agents_path.mkdir()
+            (agents_path / "old-agent.md").write_text("# Old Agent v1")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version_1),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull_v1),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        old_agent = project_path / ".github" / "agents" / "old-agent.md"
+        assert old_agent.exists()
+        assert old_agent.read_text() == "# Old Agent v1"
+
+        # Now force reinstall with version 2.0.0 (different file)
+        def fake_pull_v2(
+            _pack: Pack, _version: PackVersion, install_path: Path
+        ) -> None:
+            # Simulate real _clone_from_github behavior: clear and recreate
+            import shutil
+
+            if install_path.exists():
+                shutil.rmtree(install_path)
+            install_path.mkdir(parents=True, exist_ok=True)
+            agents_path = install_path / "agents"
+            agents_path.mkdir(exist_ok=True)
+            (agents_path / "new-agent.md").write_text("# New Agent v2")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version_2),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull_v2),
+        ):
+            result = installer.install("test/my-pack@2.0.0", force=True)
+
+        assert result.success is True
+        # Old file should be removed
+        assert not old_agent.exists()
+        # New file should exist
+        new_agent = project_path / ".github" / "agents" / "new-agent.md"
+        assert new_agent.exists()
+        assert new_agent.read_text() == "# New Agent v2"

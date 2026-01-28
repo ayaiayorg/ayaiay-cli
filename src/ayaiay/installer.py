@@ -308,6 +308,10 @@ class Installer:
                     ),
                 )
 
+        # Remove old project files before reinstalling (for updates)
+        if install_path.exists() and force:
+            self._remove_project_files(install_path)
+
         # Ensure directories exist
         self.config.ensure_directories()
 
@@ -741,8 +745,7 @@ class Installer:
 
                 # Check if file matches any of the file patterns
                 if not any(
-                    source_file.match(pattern)
-                    for pattern in platform.file_patterns
+                    source_file.match(pattern) for pattern in platform.file_patterns
                 ):
                     continue
 
