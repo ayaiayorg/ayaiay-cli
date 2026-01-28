@@ -105,3 +105,60 @@ dependencies:
 ```bash
 ayaiay validate ayaiay.yaml
 ```
+
+## Plattform-Integration
+
+Bei der Installation eines Packs kopiert AyAiAy die Dateien automatisch in die richtigen Zielverzeichnisse basierend auf den erkannten AI-Plattformen im Projekt.
+
+### Unterstützte Plattformen
+
+| Plattform | Zielverzeichnis | Erkennung |
+| --- | --- | --- |
+| GitHub Copilot | `.github/` | `.github/` Ordner |
+| Claude | `.claude/` | `.claude/` Ordner oder `CLAUDE.md` |
+| Cursor | `.cursor/` | `.cursorrules` Datei oder `.cursor/` Ordner |
+| Windsurf | `.windsurf/` | `.windsurfrules` oder `.windsurf/` Ordner |
+| Aider | `.aider/` | `.aider.conf.yml` oder `.aider/` Ordner |
+
+### Pack-Quellverzeichnisse
+
+Packs können folgende Verzeichnisse enthalten, die automatisch in die Plattform-Zielverzeichnisse kopiert werden:
+
+- `agents/` → `<platform>/agents/`
+- `prompts/` → `<platform>/prompts/`
+- `instructions/` → `<platform>/` (direkt im Plattform-Root)
+- `skills/` → `<platform>/skills/`
+- `tools/` → `<platform>/tools/`
+- `workflows/` → `<platform>/workflows/`
+
+### Beispiel
+
+Ein Pack mit folgender Struktur:
+
+```
+my-pack/
+├── agents/
+│   └── code-reviewer.md
+├── instructions/
+│   └── copilot-instructions.md
+└── ayaiay.yaml
+```
+
+Wird in einem Projekt mit `.github/` und `.claude/` Ordnern so installiert:
+
+```
+project/
+├── .github/
+│   ├── agents/
+│   │   └── code-reviewer.md
+│   └── copilot-instructions.md
+├── .claude/
+│   ├── agents/
+│   │   └── code-reviewer.md
+│   └── copilot-instructions.md
+└── ayaiay.json
+```
+
+### Standard-Plattform
+
+Wenn keine Plattform erkannt wird, aber `ayaiay.json` existiert, wird standardmäßig **GitHub Copilot** (`.github/`) als Ziel verwendet.

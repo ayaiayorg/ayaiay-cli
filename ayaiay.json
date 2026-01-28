@@ -3,11 +3,11 @@
   "packages": {
     "philippfrenzel/senior-python-developer": {
       "name": "philippfrenzel/senior-python-developer",
-      "version": "1.0.0",
-      "installed_at": "2026-01-28T13:54:47.386059Z",
+      "version": "1.0.1",
+      "installed_at": "2026-01-28T19:42:19.795339Z",
       "digest": null,
       "dependencies": {}
     }
   },
-  "updated_at": "2026-01-28T13:54:47.386079Z"
+  "updated_at": "2026-01-28T19:42:19.795355Z"
 }

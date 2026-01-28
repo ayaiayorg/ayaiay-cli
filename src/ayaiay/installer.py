@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final, NamedTuple
 
@@ -23,6 +24,107 @@ PROJECT_MANIFEST_FILENAMES: Final[tuple[str, ...]] = ("ayaiay.yaml", "ayaiay.yml
 PROJECT_COPY_DIRS: Final[tuple[str, ...]] = (".github",)
 GIT_CLONE_DEPTH: Final[int] = 1
 VERSION_PREFIX: Final[str] = "v"
+
+# Pack source directories
+PACK_SOURCE_DIRS: Final[tuple[str, ...]] = (
+    "agents",
+    "prompts",
+    "instructions",
+    "skills",
+    "tools",
+    "workflows",
+)
+
+
+@dataclass
+class PlatformConfig:
+    """Configuration for a supported AI platform."""
+
+    name: str
+    target_dir: str
+    detection_files: tuple[str, ...] = field(default_factory=tuple)
+    detection_dirs: tuple[str, ...] = field(default_factory=tuple)
+    # Mapping from pack source dir to target subdir within platform dir
+    # e.g., {"agents": "agents", "instructions": ""} means agents go to .github/agents,
+    # instructions go directly to .github/
+    dir_mapping: dict[str, str] = field(default_factory=dict)
+    # File patterns to look for in pack directories
+    file_patterns: tuple[str, ...] = ("*.md", "*.yaml", "*.yml", "*.json", "*.txt")
+
+
+# Supported AI platforms and their configurations
+PLATFORMS: dict[str, PlatformConfig] = {
+    "github-copilot": PlatformConfig(
+        name="GitHub Copilot",
+        target_dir=".github",
+        detection_files=("copilot-instructions.md",),
+        detection_dirs=(".github",),
+        dir_mapping={
+            "agents": "agents",
+            "prompts": "prompts",
+            "instructions": "",  # Instructions go directly to .github/
+            "skills": "skills",
+            "tools": "tools",
+            "workflows": "workflows",
+        },
+    ),
+    "claude": PlatformConfig(
+        name="Claude",
+        target_dir=".claude",
+        detection_files=("CLAUDE.md", "claude.md"),
+        detection_dirs=(".claude",),
+        dir_mapping={
+            "agents": "agents",
+            "prompts": "prompts",
+            "instructions": "",
+            "skills": "skills",
+            "tools": "tools",
+            "workflows": "workflows",
+        },
+    ),
+    "cursor": PlatformConfig(
+        name="Cursor",
+        target_dir=".cursor",
+        detection_files=(".cursorrules", "cursor.md"),
+        detection_dirs=(".cursor",),
+        dir_mapping={
+            "agents": "agents",
+            "prompts": "prompts",
+            "instructions": "",
+            "skills": "skills",
+            "tools": "tools",
+            "workflows": "workflows",
+        },
+    ),
+    "windsurf": PlatformConfig(
+        name="Windsurf",
+        target_dir=".windsurf",
+        detection_files=(".windsurfrules",),
+        detection_dirs=(".windsurf", ".codeium"),
+        dir_mapping={
+            "agents": "agents",
+            "prompts": "prompts",
+            "instructions": "",
+            "skills": "skills",
+            "tools": "tools",
+            "workflows": "workflows",
+        },
+    ),
+    "aider": PlatformConfig(
+        name="Aider",
+        target_dir=".aider",
+        detection_files=(".aider.conf.yml", "aider.md", ".aiderignore"),
+        detection_dirs=(".aider",),
+        dir_mapping={
+            "agents": "agents",
+            "prompts": "prompts",
+            "instructions": "",
+            "skills": "skills",
+            "tools": "tools",
+            "workflows": "workflows",
+        },
+    ),
+}
 
 
 class PackReference(NamedTuple):
@@ -521,12 +623,151 @@ class Installer:
             for filename in PROJECT_MANIFEST_FILENAMES
         )
 
+    def _detect_platforms(self, project_path: Path) -> list[str]:
+        """Detect which AI platforms are configured in the project.
+
+        Detection is based on presence of platform-specific files or directories.
+        If no platforms are detected but ayaiay.json exists, defaults to github-copilot.
+
+        Args:
+            project_path: Path to the project root.
+
+        Returns:
+            List of detected platform identifiers.
+        """
+        detected: list[str] = []
+
+        for platform_id, config in PLATFORMS.items():
+            # Check for detection files
+            for filename in config.detection_files:
+                # Check in project root
+                if (project_path / filename).exists():
+                    detected.append(platform_id)
+                    break
+                # Check in platform target dir
+                if (project_path / config.target_dir / filename).exists():
+                    detected.append(platform_id)
+                    break
+            else:
+                # Check for detection directories
+                for dirname in config.detection_dirs:
+                    if (project_path / dirname).is_dir():
+                        detected.append(platform_id)
+                        break
+
+        # Default to github-copilot if ayaiay.json exists but no platform detected
+        if not detected and (project_path / LOCK_FILENAME).exists():
+            detected.append("github-copilot")
+
+        return detected
+
     def _copy_pack_project_files(
         self,
         install_path: Path,
         project_path: Path,
     ) -> list[Path]:
-        """Copy pack project files into the current workspace.
+        """Copy pack project files into the current workspace based on detected platforms.
+
+        This method detects which AI platforms are configured in the project
+        and copies pack files (agents, prompts, instructions, etc.) to the
+        appropriate target directories for each platform.
+
+        Args:
+            install_path: Installed pack path.
+            project_path: Target project path.
+
+        Returns:
+            List of target paths that were copied.
+        """
+        copied: list[Path] = []
+
+        # Detect configured platforms
+        platforms = self._detect_platforms(project_path)
+
+        if not platforms:
+            # No platforms detected, use legacy behavior (copy .github if exists)
+            return self._copy_legacy_project_files(install_path, project_path)
+
+        # For each detected platform, copy the appropriate files
+        for platform_id in platforms:
+            platform_config = PLATFORMS.get(platform_id)
+            if not platform_config:
+                continue
+
+            platform_copied = self._copy_files_for_platform(
+                install_path, project_path, platform_config
+            )
+            copied.extend(platform_copied)
+
+        return copied
+
+    def _copy_files_for_platform(
+        self,
+        install_path: Path,
+        project_path: Path,
+        platform: PlatformConfig,
+    ) -> list[Path]:
+        """Copy pack files to the target directories for a specific platform.
+
+        Args:
+            install_path: Installed pack path.
+            project_path: Target project path.
+            platform: Platform configuration.
+
+        Returns:
+            List of target paths that were copied.
+        """
+        copied: list[Path] = []
+        target_base = project_path / platform.target_dir
+
+        for source_dir_name in PACK_SOURCE_DIRS:
+            source_dir = install_path / source_dir_name
+            if not source_dir.is_dir():
+                continue
+
+            # Determine target subdirectory from mapping
+            target_subdir = platform.dir_mapping.get(source_dir_name, source_dir_name)
+
+            if target_subdir:
+                target_dir = target_base / target_subdir
+            else:
+                # Empty string means copy directly to platform target dir
+                target_dir = target_base
+
+            # Copy all matching files from source directory
+            for source_file in source_dir.rglob("*"):
+                if source_file.is_dir():
+                    continue
+
+                # Check if file matches any of the file patterns
+                if not any(
+                    source_file.match(pattern)
+                    for pattern in platform.file_patterns
+                ):
+                    continue
+
+                # Calculate relative path within the source directory
+                relative_in_source = source_file.relative_to(source_dir)
+                target_path = target_dir / relative_in_source
+
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                existed_before = target_path.exists()
+                shutil.copy2(source_file, target_path)
+
+                if not existed_before:
+                    copied.append(target_path)
+
+        return copied
+
+    def _copy_legacy_project_files(
+        self,
+        install_path: Path,
+        project_path: Path,
+    ) -> list[Path]:
+        """Legacy copy behavior: copy .github directory directly.
+
+        This is used when no platforms are detected but the pack
+        contains a .github directory.
 
         Args:
             install_path: Installed pack path.
@@ -584,6 +825,10 @@ class Installer:
         if not isinstance(project_files, list):
             return
 
+        # Collect all platform target directories for cleanup
+        platform_dirs = {config.target_dir for config in PLATFORMS.values()}
+        platform_dirs.add(".github")  # Always include .github for legacy support
+
         for file_path in project_files:
             try:
                 target = Path(file_path)
@@ -592,12 +837,18 @@ class Installer:
             if target.exists() and target.is_file():
                 target.unlink()
 
+            # Clean up empty parent directories up to the platform dir
             parent = target.parent
-            while parent.exists() and parent.name not in {".github", ""}:
+            while parent.exists() and parent.name not in platform_dirs and parent.name:
                 if any(parent.iterdir()):
                     break
                 parent.rmdir()
                 parent = parent.parent
 
-            if parent.exists() and parent.name == ".github" and not any(parent.iterdir()):
+            # Clean up platform dir if empty
+            if (
+                parent.exists()
+                and parent.name in platform_dirs
+                and not any(parent.iterdir())
+            ):
                 parent.rmdir()

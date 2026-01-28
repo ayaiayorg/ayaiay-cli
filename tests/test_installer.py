@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from ayaiay.config import Config
-from ayaiay.installer import Installer
+from ayaiay.installer import PLATFORMS, Installer, PlatformConfig
 from ayaiay.models import Pack, PackType, PackVersion
 
 
@@ -79,12 +79,12 @@ class TestInstaller:
         assert result.install_path.exists()
         assert "Successfully installed" in result.message
 
-    def test_install_copies_github_directory_to_project(
+    def test_install_copies_agents_to_project(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test copying .github folder into the current project."""
+        """Test copying agents folder into the current project's platform directory."""
         config = Config(
             api_base_url="https://api.test.ayaiay.org",
             timeout=10.0,
@@ -108,9 +108,9 @@ class TestInstaller:
         monkeypatch.chdir(project_path)
 
         def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
-            workflow_path = install_path / ".github" / "workflows"
-            workflow_path.mkdir(parents=True, exist_ok=True)
-            (workflow_path / "agent.yml").write_text("name: Test")
+            agents_path = install_path / "agents"
+            agents_path.mkdir(parents=True, exist_ok=True)
+            (agents_path / "my-agent.md").write_text("# Agent Instructions")
 
         with (
             patch.object(installer.client, "get_pack", return_value=pack),
@@ -124,9 +124,10 @@ class TestInstaller:
             result = installer.install("philippfrenzel/my-awesome-pack@1.0.1")
 
         assert result.success is True
-        copied_workflow = project_path / ".github" / "workflows" / "agent.yml"
-        assert copied_workflow.exists()
-        assert copied_workflow.read_text() == "name: Test"
+        # Default platform is github-copilot when ayaiay.json exists
+        copied_agent = project_path / ".github" / "agents" / "my-agent.md"
+        assert copied_agent.exists()
+        assert copied_agent.read_text() == "# Agent Instructions"
 
     def test_uninstall_removes_project_files(
         self,
@@ -157,9 +158,9 @@ class TestInstaller:
         monkeypatch.chdir(project_path)
 
         def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
-            workflow_path = install_path / ".github" / "workflows"
-            workflow_path.mkdir(parents=True, exist_ok=True)
-            (workflow_path / "agent.yml").write_text("name: Test")
+            agents_path = install_path / "agents"
+            agents_path.mkdir(parents=True, exist_ok=True)
+            (agents_path / "my-agent.md").write_text("# Agent Instructions")
 
         with (
             patch.object(installer.client, "get_pack", return_value=pack),
@@ -173,12 +174,12 @@ class TestInstaller:
             result = installer.install("philippfrenzel/my-awesome-pack@1.0.1")
 
         assert result.success is True
-        copied_workflow = project_path / ".github" / "workflows" / "agent.yml"
-        assert copied_workflow.exists()
+        copied_agent = project_path / ".github" / "agents" / "my-agent.md"
+        assert copied_agent.exists()
 
         uninstall_result = installer.uninstall("philippfrenzel/my-awesome-pack")
         assert uninstall_result.success is True
-        assert not copied_workflow.exists()
+        assert not copied_agent.exists()
 
     def test_install_with_connection_error(self, installer: Installer) -> None:
         """Test install handles connection errors gracefully."""
@@ -265,3 +266,333 @@ class TestInstaller:
         assert result.version.version == "1.0.0"
         assert result.install_path is not None
         assert result.install_path.exists()
+
+
+class TestPlatformDetection:
+    """Tests for platform detection functionality."""
+
+    def test_detect_github_copilot_by_directory(self, tmp_path: Path) -> None:
+        """Test detection of GitHub Copilot by .github directory."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+
+        platforms = installer._detect_platforms(project_path)
+        assert "github-copilot" in platforms
+
+    def test_detect_claude_by_directory(self, tmp_path: Path) -> None:
+        """Test detection of Claude by .claude directory."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".claude").mkdir()
+
+        platforms = installer._detect_platforms(project_path)
+        assert "claude" in platforms
+
+    def test_detect_cursor_by_file(self, tmp_path: Path) -> None:
+        """Test detection of Cursor by .cursorrules file."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".cursorrules").write_text("rules")
+
+        platforms = installer._detect_platforms(project_path)
+        assert "cursor" in platforms
+
+    def test_detect_multiple_platforms(self, tmp_path: Path) -> None:
+        """Test detection of multiple platforms."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / ".claude").mkdir()
+
+        platforms = installer._detect_platforms(project_path)
+        assert "github-copilot" in platforms
+        assert "claude" in platforms
+
+    def test_default_to_github_copilot_with_lockfile(self, tmp_path: Path) -> None:
+        """Test default to github-copilot when only ayaiay.json exists."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+
+        platforms = installer._detect_platforms(project_path)
+        assert "github-copilot" in platforms
+
+
+class TestPlatformFileCopying:
+    """Tests for platform-specific file copying."""
+
+    def test_copy_agents_to_github_copilot(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test copying agents directory to .github/agents for GitHub Copilot."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            agents_path = install_path / "agents"
+            agents_path.mkdir()
+            (agents_path / "my-agent.md").write_text("# Agent Instructions")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        copied_agent = project_path / ".github" / "agents" / "my-agent.md"
+        assert copied_agent.exists()
+        assert copied_agent.read_text() == "# Agent Instructions"
+
+    def test_copy_agents_to_claude(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test copying agents directory to .claude/agents for Claude."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".claude").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            agents_path = install_path / "agents"
+            agents_path.mkdir()
+            (agents_path / "my-agent.md").write_text("# Agent Instructions")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        copied_agent = project_path / ".claude" / "agents" / "my-agent.md"
+        assert copied_agent.exists()
+        assert copied_agent.read_text() == "# Agent Instructions"
+
+    def test_copy_to_multiple_platforms(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test copying files to multiple platforms simultaneously."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / ".claude").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            agents_path = install_path / "agents"
+            agents_path.mkdir()
+            (agents_path / "my-agent.md").write_text("# Agent Instructions")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        # Check both platforms received the files
+        assert (project_path / ".github" / "agents" / "my-agent.md").exists()
+        assert (project_path / ".claude" / "agents" / "my-agent.md").exists()
+
+    def test_copy_instructions_to_platform_root(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that instructions are copied directly to platform root."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.INSTRUCTION,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            instructions_path = install_path / "instructions"
+            instructions_path.mkdir()
+            (instructions_path / "copilot-instructions.md").write_text("# Instructions")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        # Instructions go directly to .github/ not .github/instructions/
+        copied_instruction = project_path / ".github" / "copilot-instructions.md"
+        assert copied_instruction.exists()
+        assert copied_instruction.read_text() == "# Instructions"
+
+    def test_uninstall_removes_platform_files(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that uninstall removes files from all platforms."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / ".claude").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            agents_path = install_path / "agents"
+            agents_path.mkdir()
+            (agents_path / "my-agent.md").write_text("# Agent Instructions")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        github_agent = project_path / ".github" / "agents" / "my-agent.md"
+        claude_agent = project_path / ".claude" / "agents" / "my-agent.md"
+        assert github_agent.exists()
+        assert claude_agent.exists()
+
+        # Uninstall
+        uninstall_result = installer.uninstall("test/my-pack")
+        assert uninstall_result.success is True
+        assert not github_agent.exists()
+        assert not claude_agent.exists()
