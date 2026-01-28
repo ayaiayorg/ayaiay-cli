@@ -52,6 +52,32 @@ class PackageManager:
             # Return empty lock file if invalid
             return LockFile()
 
+    def _build_lock_entry(
+        self,
+        name: str,
+        version: str,
+        digest: str | None,
+        dependencies: dict[str, str] | None = None,
+    ) -> LockFilePackage:
+        """Create a lock file package entry.
+
+        Args:
+            name: Package full name (publisher/name).
+            version: Installed version.
+            digest: Package digest/hash.
+            dependencies: Package dependencies mapping.
+
+        Returns:
+            LockFilePackage entry.
+        """
+        return LockFilePackage(
+            name=name,
+            version=version,
+            installed_at=datetime.now(UTC),
+            digest=digest,
+            dependencies=dependencies or {},
+        )
+
     def save_lock_file(self, lock_file: LockFile) -> None:
         """Save the lock file to disk.
 
@@ -123,10 +149,9 @@ class PackageManager:
 
         # Add to lock file
         if result.pack and result.version:
-            lock_file.packages[pack_ref.full_name] = LockFilePackage(
+            lock_file.packages[pack_ref.full_name] = self._build_lock_entry(
                 name=pack_ref.full_name,
                 version=result.version.version,
-                installed_at=result.version.published_at,
                 digest=result.version.digest,
             )
             self.save_lock_file(lock_file)
@@ -162,15 +187,37 @@ class PackageManager:
             full_name = result.pack.full_name
 
         lock_file = self.load_lock_file()
-        lock_file.packages[full_name] = LockFilePackage(
+        lock_file.packages[full_name] = self._build_lock_entry(
             name=full_name,
             version=result.version.version,
-            installed_at=result.version.published_at or datetime.now(UTC),
             digest=result.version.digest,
         )
         self.save_lock_file(lock_file)
 
         return (True, f"Updated ayaiay.json for {full_name}@{result.version.version}")
+
+    def record_uninstall(self, reference: str) -> tuple[bool, str]:
+        """Remove a package from the lock file without uninstalling.
+
+        Args:
+            reference: Pack reference (publisher/name).
+
+        Returns:
+            Tuple of (success, message).
+        """
+        try:
+            pack_ref = PackReference.parse(reference)
+        except ValueError as e:
+            return (False, str(e))
+
+        lock_file = self.load_lock_file()
+        if pack_ref.full_name not in lock_file.packages:
+            return (False, f"Package not in ayaiay.json: {pack_ref.full_name}")
+
+        del lock_file.packages[pack_ref.full_name]
+        self.save_lock_file(lock_file)
+
+        return (True, f"Removed {pack_ref.full_name} from ayaiay.json")
 
     def remove_package(self, reference: str) -> tuple[bool, str]:
         """Remove a package from lock file and uninstall it.
@@ -286,10 +333,9 @@ class PackageManager:
 
                 if result.success and result.version:
                     # Update lock file
-                    lock_file.packages[pkg_name] = LockFilePackage(
+                    lock_file.packages[pkg_name] = self._build_lock_entry(
                         name=pkg_name,
                         version=result.version.version,
-                        installed_at=result.version.published_at,
                         digest=result.version.digest,
                     )
                     self.save_lock_file(lock_file)

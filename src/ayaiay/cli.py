@@ -212,6 +212,13 @@ def uninstall(ctx: click.Context, reference: str) -> None:
 
     if result.success:
         print_success(result.message)
+        pm = PackageManager(config=config)
+        if pm.lock_file_path.exists():
+            updated, message = pm.record_uninstall(reference)
+            if updated:
+                console.print(f"[dim]{message}[/dim]")
+            else:
+                print_warning(message)
     else:
         print_error(result.message)
         sys.exit(1)
