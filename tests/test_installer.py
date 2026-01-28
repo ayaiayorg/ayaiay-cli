@@ -1,5 +1,7 @@
 """Tests for the pack installer."""
 
+import os
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -7,6 +9,7 @@ import pytest
 
 from ayaiay.config import Config
 from ayaiay.installer import Installer
+from ayaiay.models import Pack, PackType, PackVersion
 
 
 @pytest.fixture
@@ -26,6 +29,55 @@ def installer(config: Config) -> Installer:
 
 class TestInstaller:
     """Tests for Installer class."""
+
+    def test_install_specific_version_from_registry(self, tmp_path: Path) -> None:
+        """Test installing a specific version by reference."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            timeout=10.0,
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-awesome-pack",
+            publisher="philippfrenzel",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/philippfrenzel/my-awesome-pack",
+        )
+        version = PackVersion(version="1.0.1")
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack) as mock_get,
+            patch.object(
+                installer.client,
+                "get_pack_version",
+                return_value=version,
+            ) as mock_get_version,
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("philippfrenzel/my-awesome-pack@1.0.1")
+
+        mock_get.assert_called_once_with("philippfrenzel/my-awesome-pack")
+        mock_get_version.assert_called_once_with(
+            "philippfrenzel/my-awesome-pack",
+            "1.0.1",
+        )
+
+        assert result.success is True
+        assert result.pack == pack
+        assert result.version == version
+        assert (
+            result.install_path
+            == config.install_dir / "philippfrenzel" / "my-awesome-pack"
+        )
+        assert result.install_path.exists()
+        assert "Successfully installed" in result.message
 
     def test_install_with_connection_error(self, installer: Installer) -> None:
         """Test install handles connection errors gracefully."""
@@ -84,3 +136,31 @@ class TestInstaller:
         assert result.success is False
         assert "invalid pack reference" in result.message.lower()
         assert result.pack is None
+
+    @pytest.mark.integration
+    @pytest.mark.skipif(
+        os.environ.get("AYAIAY_INTEGRATION_TESTS") != "1",
+        reason="Integration test disabled (set AYAIAY_INTEGRATION_TESTS=1)",
+    )
+    def test_install_real_package(self, tmp_path: Path) -> None:
+        """Integration test: install a real package from the registry."""
+        config = Config(
+            api_base_url=os.environ.get("AYAIAY_API_URL", "https://ayaiay.org"),
+            registry_url=os.environ.get("AYAIAY_REGISTRY_URL", "ghcr.io/ayaiayorg"),
+            timeout=float(os.environ.get("AYAIAY_TIMEOUT", "30")),
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        result = installer.install("philippfrenzel/senior-python-developer@1.0.0")
+
+        if (not result.success) and "unable to connect" in result.message.lower():
+            pytest.skip("AyAiAy API not reachable from test environment")
+
+        assert result.success is True
+        assert result.pack is not None
+        assert result.version is not None
+        assert result.version.version == "1.0.0"
+        assert result.install_path is not None
+        assert result.install_path.exists()

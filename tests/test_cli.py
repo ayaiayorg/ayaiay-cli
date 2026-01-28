@@ -25,7 +25,7 @@ class TestCLI:
         result = runner.invoke(main, ["--version"])
         assert result.exit_code == 0
         assert "ayaiay" in result.output
-        assert "1.0.2" in result.output
+        assert "1.1.0" in result.output
 
     def test_help(self, runner: CliRunner) -> None:
         """Test --help flag."""
@@ -214,7 +214,7 @@ class TestInstallCommand:
             mock_result = MagicMock()
             mock_result.success = False
             mock_result.message = (
-                "Unable to connect to the AyAiAy API server at https://api.ayaiay.org. "
+                "Unable to connect to the AyAiAy API server at https://ayaiay.org. "
                 "Please check your internet connection and try again."
             )
             mock_installer.install.return_value = mock_result

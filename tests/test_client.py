@@ -61,7 +61,7 @@ class TestAyAiAyClient:
         mock_httpx_client.get.return_value = mock_response
 
         assert client.health_check() is True
-        mock_httpx_client.get.assert_called_with("/api/health")
+        mock_httpx_client.get.assert_called_with("/health")
 
     def test_health_check_failure(
         self, client: AyAiAyClient, mock_httpx_client: MagicMock
@@ -76,13 +76,12 @@ class TestAyAiAyClient:
     ) -> None:
         """Test searching for packs."""
         mock_response_data = {
-            "items": [
+            "results": [
                 {
-                    "id": "pack-1",
+                    "id": 1,
                     "name": "test-pack",
-                    "publisher": "test-user",
-                    "pack_type": "agent",
-                    "downloads": 100,
+                    "publisher": {"name": "test-user"},
+                    "latest_version": "1.0.0",
                 }
             ],
             "total": 1,
@@ -106,7 +105,7 @@ class TestAyAiAyClient:
         """Test searching with filters."""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"items": [], "total": 0}
+        mock_response.json.return_value = {"results": [], "total": 0}
         mock_httpx_client.get.return_value = mock_response
 
         client.search_packs(
@@ -128,32 +127,49 @@ class TestAyAiAyClient:
     def test_get_pack(self, client: AyAiAyClient, mock_httpx_client: MagicMock) -> None:
         """Test getting a specific pack."""
         mock_response_data = {
-            "id": "pack-1",
+            "id": 1,
             "name": "test-pack",
-            "publisher": "test-user",
-            "pack_type": "agent",
+            "publisher": {"name": "test-user"},
             "description": "A test pack",
-            "downloads": 50,
+            "repo_url": "https://github.com/test-user/test-pack",
         }
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = mock_response_data
-        mock_httpx_client.get.return_value = mock_response
+        mock_search_response = MagicMock()
+        mock_search_response.status_code = 200
+        mock_search_response.json.return_value = {
+            "results": [
+                {
+                    "id": 1,
+                    "name": "test-pack",
+                    "publisher": {"name": "test-user"},
+                }
+            ],
+            "total": 1,
+        }
+
+        mock_pack_response = MagicMock()
+        mock_pack_response.status_code = 200
+        mock_pack_response.json.return_value = mock_response_data
+
+        mock_httpx_client.get.side_effect = [
+            mock_search_response,
+            mock_pack_response,
+        ]
 
         pack = client.get_pack("test-user/test-pack")
 
         assert isinstance(pack, Pack)
         assert pack.name == "test-pack"
         assert pack.publisher == "test-user"
-        mock_httpx_client.get.assert_called_with("/api/packs/test-user/test-pack")
+        assert mock_httpx_client.get.call_args_list[1].args[0] == "/api/v1/packs/1"
 
     def test_get_pack_not_found(
         self, client: AyAiAyClient, mock_httpx_client: MagicMock
     ) -> None:
         """Test getting a non-existent pack raises NotFoundError."""
         mock_response = MagicMock()
-        mock_response.status_code = 404
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"results": [], "total": 0}
         mock_httpx_client.get.return_value = mock_response
 
         with pytest.raises(NotFoundError):
@@ -163,17 +179,30 @@ class TestAyAiAyClient:
         self, client: AyAiAyClient, mock_httpx_client: MagicMock
     ) -> None:
         """Test getting pack versions."""
-        mock_response_data = {
-            "versions": [
-                {"version": "1.0.0", "downloads": 100},
-                {"version": "0.9.0", "downloads": 50},
-            ]
+        mock_search_response = MagicMock()
+        mock_search_response.status_code = 200
+        mock_search_response.json.return_value = {
+            "results": [
+                {
+                    "id": 1,
+                    "name": "test-pack",
+                    "publisher": {"name": "test-user"},
+                }
+            ],
+            "total": 1,
         }
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = mock_response_data
-        mock_httpx_client.get.return_value = mock_response
+        mock_versions_response = MagicMock()
+        mock_versions_response.status_code = 200
+        mock_versions_response.json.return_value = [
+            {"version": "1.0.0"},
+            {"version": "0.9.0"},
+        ]
+
+        mock_httpx_client.get.side_effect = [
+            mock_search_response,
+            mock_versions_response,
+        ]
 
         versions = client.get_pack_versions("test-user/test-pack")
 

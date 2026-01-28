@@ -19,7 +19,7 @@ pip install git+https://github.com/ayaiayorg/ayaiay-cli.git
 Install a specific version (once tags are available):
 
 ```bash
-pip install git+https://github.com/ayaiayorg/ayaiay-cli.git@v1.0.2
+pip install git+https://github.com/ayaiayorg/ayaiay-cli.git@v1.1.0
 ```
 
 ### Option 2: Install from Source

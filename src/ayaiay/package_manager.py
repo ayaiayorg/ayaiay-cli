@@ -133,6 +133,45 @@ class PackageManager:
 
         return (True, result.message, result)
 
+    def record_installation(
+        self,
+        reference: str,
+        result: InstallResult,
+    ) -> tuple[bool, str]:
+        """Record an installation in the lock file without reinstalling.
+
+        Args:
+            reference: Pack reference used for installation.
+            result: Install result from the installer.
+
+        Returns:
+            Tuple of (success, message).
+        """
+        if not result.success:
+            return (False, "Installation was not successful")
+
+        if result.version is None:
+            return (False, "Missing version information from installation")
+
+        try:
+            pack_ref = PackReference.parse(reference)
+            full_name = pack_ref.full_name
+        except ValueError:
+            if result.pack is None:
+                return (False, "Unable to determine package name")
+            full_name = result.pack.full_name
+
+        lock_file = self.load_lock_file()
+        lock_file.packages[full_name] = LockFilePackage(
+            name=full_name,
+            version=result.version.version,
+            installed_at=result.version.published_at or datetime.now(UTC),
+            digest=result.version.digest,
+        )
+        self.save_lock_file(lock_file)
+
+        return (True, f"Updated ayaiay.json for {full_name}@{result.version.version}")
+
     def remove_package(self, reference: str) -> tuple[bool, str]:
         """Remove a package from lock file and uninstall it.
 

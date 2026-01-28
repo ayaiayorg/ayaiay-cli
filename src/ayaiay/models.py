@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
 class PackType(str, Enum):
@@ -30,17 +30,25 @@ class PackVersion(BaseModel):
 class Pack(BaseModel):
     """An AyAiAy pack (agent, instruction, or prompt pack)."""
 
-    id: str = Field(..., description="Unique pack identifier")
+    id: int | str = Field(..., description="Unique pack identifier")
     name: str = Field(..., description="Pack name")
     publisher: str = Field(..., description="Publisher username or organization")
     description: str | None = Field(None, description="Pack description")
-    pack_type: PackType = Field(..., description="Type of pack")
+    pack_type: PackType | None = Field(None, description="Type of pack")
     repository_url: HttpUrl | None = Field(None, description="GitHub repository URL")
     latest_version: str | None = Field(None, description="Latest version string")
     tags: list[str] = Field(default_factory=list, description="Pack tags")
     downloads: int = Field(0, description="Total download count")
     created_at: datetime | None = Field(None, description="Creation timestamp")
     updated_at: datetime | None = Field(None, description="Last update timestamp")
+
+    @field_validator("publisher", mode="before")
+    @classmethod
+    def normalize_publisher(cls, value: Any) -> Any:
+        """Normalize publisher field from API v1 payloads."""
+        if isinstance(value, dict):
+            return value.get("name") or value.get("display_name")
+        return value
 
     @property
     def full_name(self) -> str:

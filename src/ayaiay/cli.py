@@ -16,6 +16,7 @@ from ayaiay import __version__
 from ayaiay.client import AyAiAyClient, AyAiAyError
 from ayaiay.config import Config
 from ayaiay.installer import Installer, PackReference
+from ayaiay.models import PackVersion
 from ayaiay.package_manager import PackageManager
 from ayaiay.validator import validate_manifest
 
@@ -135,7 +136,7 @@ def search(
     for pack in result.packs:
         table.add_row(
             pack.full_name,
-            pack.pack_type.value,
+            pack.pack_type.value if pack.pack_type else "-",
             pack.latest_version or "-",
             (
                 (pack.description or "")[:50] + "..."
@@ -181,6 +182,13 @@ def install(ctx: click.Context, reference: str, force: bool) -> None:
         print_success(result.message)
         if result.install_path:
             console.print(f"[dim]Location: {result.install_path}[/dim]")
+        pm = PackageManager(config=config)
+        if pm.lock_file_path.exists() and isinstance(result.version, PackVersion):
+            updated, message = pm.record_installation(reference, result)
+            if updated:
+                console.print(f"[dim]{message}[/dim]")
+            else:
+                print_warning(message)
     else:
         print_error(result.message)
         sys.exit(1)
@@ -341,7 +349,10 @@ def show(ctx: click.Context, reference: str) -> None:
     info.append("Name: ", style="dim")
     info.append(f"{pack.full_name}\n", style="cyan bold")
     info.append("Type: ", style="dim")
-    info.append(f"{pack.pack_type.value}\n", style="magenta")
+    info.append(
+        f"{pack.pack_type.value if pack.pack_type else 'N/A'}\n",
+        style="magenta",
+    )
 
     if pack.description:
         info.append("Description: ", style="dim")

@@ -79,3 +79,7 @@ dmypy.json
 # Local configuration
 .ayaiay/
 config.local.yaml
+
+# Track GitHub workflows/config
+!.github/
+!.github/**

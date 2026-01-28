@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ayaiay"
-version = "1.0.2"
+version = "1.1.0"
 description = "CLI and SDK for the AyAiAy.org AI agents marketplace"
 readme = "README.md"
 license = "GPL-3.0-only"
@@ -87,3 +87,6 @@ select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "integration: live tests hitting real API/registry",
+]

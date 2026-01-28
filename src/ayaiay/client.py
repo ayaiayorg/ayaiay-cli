@@ -15,6 +15,7 @@ USER_AGENT: Final[str] = f"ayaiay-cli/{__version__}"
 DEFAULT_PAGE: Final[int] = 1
 DEFAULT_PER_PAGE: Final[int] = 20
 MAX_PER_PAGE: Final[int] = 100
+API_PREFIX: Final[str] = "/api/v1"
 
 
 class AyAiAyError(Exception):
@@ -116,6 +117,43 @@ class AyAiAyClient:
         json_data: dict[str, Any] = response.json()
         return json_data
 
+    def _normalize_pack_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Normalize pack payloads from API v1 to the Pack model shape."""
+        normalized = dict(data)
+        if "repo_url" in normalized and "repository_url" not in normalized:
+            normalized["repository_url"] = normalized.get("repo_url")
+        if "pack_type" not in normalized:
+            normalized["pack_type"] = None
+        return normalized
+
+    def _normalize_version_data(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Normalize version payloads from API v1 to the PackVersion model."""
+        normalized = dict(data)
+        if "oci_digest" in normalized and "digest" not in normalized:
+            normalized["digest"] = normalized.get("oci_digest")
+        return normalized
+
+    def _resolve_pack_id(self, pack_id: str) -> str:
+        """Resolve a publisher/name reference to a numeric pack id."""
+        if "/" not in pack_id:
+            return pack_id
+
+        publisher, name = pack_id.split("/", 1)
+        response = self.client.get(
+            f"{API_PREFIX}/packs",
+            params={"q": name, "per_page": MAX_PER_PAGE, "page": 1},
+        )
+        data = self._handle_response(response)
+        items = data.get("results", data.get("items", []))
+        for item in items:
+            item_publisher = item.get("publisher")
+            if isinstance(item_publisher, dict):
+                item_publisher = item_publisher.get("name")
+            if item.get("name") == name and item_publisher == publisher:
+                return str(item.get("id"))
+
+        raise NotFoundError(f"Pack not found: {pack_id}")
+
     def health_check(self) -> bool:
         """Check if the API is healthy.
 
@@ -123,7 +161,7 @@ class AyAiAyClient:
             True if the API is healthy, False otherwise.
         """
         try:
-            response = self.client.get("/api/health")
+            response = self.client.get("/health")
             return response.status_code == 200
         except httpx.RequestError:
             return False
@@ -166,10 +204,11 @@ class AyAiAyClient:
         if tags:
             params["tags"] = ",".join(tags)
 
-        response = self.client.get("/api/packs", params=params)
+        response = self.client.get(f"{API_PREFIX}/packs", params=params)
         data = self._handle_response(response)
 
-        packs = [Pack.model_validate(p) for p in data.get("items", [])]
+        items = data.get("results", data.get("items", []))
+        packs = [Pack.model_validate(self._normalize_pack_data(p)) for p in items]
         return SearchResult(
             packs=packs,
             total=data.get("total", len(packs)),
@@ -189,9 +228,10 @@ class AyAiAyClient:
         Raises:
             NotFoundError: If the pack doesn't exist.
         """
-        response = self.client.get(f"/api/packs/{pack_id}")
+        resolved_id = self._resolve_pack_id(pack_id)
+        response = self.client.get(f"{API_PREFIX}/packs/{resolved_id}")
         data = self._handle_response(response)
-        return Pack.model_validate(data)
+        return Pack.model_validate(self._normalize_pack_data(data))
 
     def get_pack_versions(self, pack_id: str) -> list[PackVersion]:
         """Get all versions for a pack.
@@ -205,9 +245,17 @@ class AyAiAyClient:
         Raises:
             NotFoundError: If the pack doesn't exist.
         """
-        response = self.client.get(f"/api/packs/{pack_id}/versions")
+        resolved_id = self._resolve_pack_id(pack_id)
+        response = self.client.get(f"{API_PREFIX}/packs/{resolved_id}/versions")
         data = self._handle_response(response)
-        return [PackVersion.model_validate(v) for v in data.get("versions", [])]
+        if isinstance(data, list):
+            versions_data = data
+        else:
+            versions_data = data.get("versions", [])
+        return [
+            PackVersion.model_validate(self._normalize_version_data(v))
+            for v in versions_data
+        ]
 
     def get_pack_version(self, pack_id: str, version: str) -> PackVersion:
         """Get a specific version of a pack.
@@ -222,6 +270,9 @@ class AyAiAyClient:
         Raises:
             NotFoundError: If the pack or version doesn't exist.
         """
-        response = self.client.get(f"/api/packs/{pack_id}/versions/{version}")
+        resolved_id = self._resolve_pack_id(pack_id)
+        response = self.client.get(
+            f"{API_PREFIX}/packs/{resolved_id}/versions/{version}"
+        )
         data = self._handle_response(response)
-        return PackVersion.model_validate(data)
+        return PackVersion.model_validate(self._normalize_version_data(data))
