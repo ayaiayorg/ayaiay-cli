@@ -334,5 +334,12 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 - [AyAiAy.org](https://ayaiay.org) - Marketplace website
 - [Documentation](https://github.com/ayaiayorg/ayaiay) - Full documentation
+- [Local Documentation](docs/README.md) - Übersicht und Referenzen
+- [CLI Reference](docs/CLI.md) - Befehle und Beispiele
+- [Configuration](docs/CONFIGURATION.md) - Einstellungen und Umgebungsvariablen
+- [Pack Manifests](docs/PACKS.md) - ayaiay.yaml Schema
+- [Lock File](docs/LOCKFILE.md) - ayaiay.json Format
+- [SDK Guide](docs/SDK.md) - Python-Client Nutzung
+- [Troubleshooting](docs/TROUBLESHOOTING.md) - Fehlerbehebung
 - [Issues](https://github.com/ayaiayorg/ayaiay-cli/issues) - Bug reports and feature requests
 - [Agent Workflow Guide](docs/AGENT_WORKFLOW.md) - Automated issue handling
