@@ -79,6 +79,107 @@ class TestInstaller:
         assert result.install_path.exists()
         assert "Successfully installed" in result.message
 
+    def test_install_copies_github_directory_to_project(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test copying .github folder into the current project."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            timeout=10.0,
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-awesome-pack",
+            publisher="philippfrenzel",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/philippfrenzel/my-awesome-pack",
+        )
+        version = PackVersion(version="1.0.1")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir(parents=True, exist_ok=True)
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            workflow_path = install_path / ".github" / "workflows"
+            workflow_path.mkdir(parents=True, exist_ok=True)
+            (workflow_path / "agent.yml").write_text("name: Test")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(
+                installer.client,
+                "get_pack_version",
+                return_value=version,
+            ),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("philippfrenzel/my-awesome-pack@1.0.1")
+
+        assert result.success is True
+        copied_workflow = project_path / ".github" / "workflows" / "agent.yml"
+        assert copied_workflow.exists()
+        assert copied_workflow.read_text() == "name: Test"
+
+    def test_uninstall_removes_project_files(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test uninstall removes files copied into the project."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            timeout=10.0,
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-awesome-pack",
+            publisher="philippfrenzel",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/philippfrenzel/my-awesome-pack",
+        )
+        version = PackVersion(version="1.0.1")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir(parents=True, exist_ok=True)
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            workflow_path = install_path / ".github" / "workflows"
+            workflow_path.mkdir(parents=True, exist_ok=True)
+            (workflow_path / "agent.yml").write_text("name: Test")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(
+                installer.client,
+                "get_pack_version",
+                return_value=version,
+            ),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("philippfrenzel/my-awesome-pack@1.0.1")
+
+        assert result.success is True
+        copied_workflow = project_path / ".github" / "workflows" / "agent.yml"
+        assert copied_workflow.exists()
+
+        uninstall_result = installer.uninstall("philippfrenzel/my-awesome-pack")
+        assert uninstall_result.success is True
+        assert not copied_workflow.exists()
+
     def test_install_with_connection_error(self, installer: Installer) -> None:
         """Test install handles connection errors gracefully."""
         with patch.object(installer.client, "get_pack") as mock_get_pack:

@@ -18,6 +18,9 @@ from ayaiay.models import Pack, PackVersion
 
 # Constants
 METADATA_FILENAME: Final[str] = ".ayaiay-metadata.json"
+LOCK_FILENAME: Final[str] = "ayaiay.json"
+PROJECT_MANIFEST_FILENAMES: Final[tuple[str, ...]] = ("ayaiay.yaml", "ayaiay.yml")
+PROJECT_COPY_DIRS: Final[tuple[str, ...]] = (".github",)
 GIT_CLONE_DEPTH: Final[int] = 1
 VERSION_PREFIX: Final[str] = "v"
 
@@ -218,8 +221,26 @@ class Installer:
                 message=f"Failed to pull from registry: {e}",
             )
 
+        # Copy pack files into project workspace when applicable
+        try:
+            project_path = Path.cwd()
+            project_files: list[Path] = []
+            if self._should_apply_to_project(project_path):
+                project_files = self._copy_pack_project_files(
+                    install_path,
+                    project_path,
+                )
+        except Exception as e:
+            return InstallResult(
+                success=False,
+                pack=pack,
+                version=version,
+                install_path=install_path,
+                message=f"Failed to apply pack files to project: {e}",
+            )
+
         # Write installation metadata
-        self._write_install_metadata(install_path, pack, version)
+        self._write_install_metadata(install_path, pack, version, project_files)
 
         return InstallResult(
             success=True,
@@ -259,6 +280,7 @@ class Installer:
                 message=f"Pack not installed: {pack_ref.full_name}",
             )
 
+        self._remove_project_files(install_path)
         shutil.rmtree(install_path)
 
         return InstallResult(
@@ -460,6 +482,7 @@ class Installer:
         install_path: Path,
         pack: Pack,
         version: PackVersion,
+        project_files: list[Path] | None = None,
     ) -> None:
         """Write installation metadata file.
 
@@ -476,7 +499,105 @@ class Installer:
                 version.published_at.isoformat() if version.published_at else None
             ),
             "digest": version.digest,
+            "project_files": [str(path) for path in (project_files or [])],
         }
         metadata_path = install_path / METADATA_FILENAME
         with open(metadata_path, "w") as f:
             json.dump(metadata, f, indent=2)
+
+    def _should_apply_to_project(self, project_path: Path) -> bool:
+        """Determine whether pack files should be applied to the project.
+
+        Args:
+            project_path: Path to the current project.
+
+        Returns:
+            True if the project should receive pack files.
+        """
+        if (project_path / LOCK_FILENAME).exists():
+            return True
+        return any(
+            (project_path / filename).exists()
+            for filename in PROJECT_MANIFEST_FILENAMES
+        )
+
+    def _copy_pack_project_files(
+        self,
+        install_path: Path,
+        project_path: Path,
+    ) -> list[Path]:
+        """Copy pack project files into the current workspace.
+
+        Args:
+            install_path: Installed pack path.
+            project_path: Target project path.
+
+        Returns:
+            List of target paths that were copied.
+        """
+        copied: list[Path] = []
+
+        for rel_path in PROJECT_COPY_DIRS:
+            source = install_path / rel_path
+            if not source.exists():
+                continue
+
+            if source.is_file():
+                target = project_path / rel_path
+                target.parent.mkdir(parents=True, exist_ok=True)
+                existed_before = target.exists()
+                shutil.copy2(source, target)
+                if not existed_before:
+                    copied.append(target)
+                continue
+
+            for source_path in source.rglob("*"):
+                if source_path.is_dir():
+                    continue
+                relative = source_path.relative_to(install_path)
+                target_path = project_path / relative
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                existed_before = target_path.exists()
+                shutil.copy2(source_path, target_path)
+                if not existed_before:
+                    copied.append(target_path)
+
+        return copied
+
+    def _remove_project_files(self, install_path: Path) -> None:
+        """Remove project files that were copied during installation.
+
+        Args:
+            install_path: Installed pack path.
+        """
+        metadata_path = install_path / METADATA_FILENAME
+        if not metadata_path.exists():
+            return
+
+        try:
+            with open(metadata_path) as f:
+                metadata = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return
+
+        project_files = metadata.get("project_files", [])
+        if not isinstance(project_files, list):
+            return
+
+        for file_path in project_files:
+            try:
+                target = Path(file_path)
+            except TypeError:
+                continue
+            if target.exists() and target.is_file():
+                target.unlink()
+
+            parent = target.parent
+            while parent.exists() and parent.name not in {".github", ""}:
+                if any(parent.iterdir()):
+                    break
+                parent.rmdir()
+                parent = parent.parent
+
+            if parent.exists() and parent.name == ".github" and not any(parent.iterdir()):
+                parent.rmdir()
