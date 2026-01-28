@@ -1,6 +1,6 @@
 """AyAiAy CLI and SDK for the AI agents marketplace."""
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __author__ = "Philipp Frenzel"
 
 from ayaiay.client import AyAiAyClient
