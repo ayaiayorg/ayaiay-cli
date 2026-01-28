@@ -248,10 +248,7 @@ class AyAiAyClient:
         resolved_id = self._resolve_pack_id(pack_id)
         response = self.client.get(f"{API_PREFIX}/packs/{resolved_id}/versions")
         data = self._handle_response(response)
-        if isinstance(data, list):
-            versions_data = data
-        else:
-            versions_data = data.get("versions", [])
+        versions_data = data if isinstance(data, list) else data.get("versions", [])
         return [
             PackVersion.model_validate(self._normalize_version_data(v))
             for v in versions_data

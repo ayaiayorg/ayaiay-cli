@@ -670,9 +670,10 @@ class Installer:
         install_path: Path,
         project_path: Path,
     ) -> list[Path]:
-        """Copy pack project files into the current workspace based on detected platforms.
+        """Copy pack project files into the current workspace.
 
-        This method detects which AI platforms are configured in the project
+        Copies files based on detected platforms. This method detects which
+        AI platforms are configured in the project
         and copies pack files (agents, prompts, instructions, etc.) to the
         appropriate target directories for each platform.
 
@@ -732,11 +733,8 @@ class Installer:
             # Determine target subdirectory from mapping
             target_subdir = platform.dir_mapping.get(source_dir_name, source_dir_name)
 
-            if target_subdir:
-                target_dir = target_base / target_subdir
-            else:
-                # Empty string means copy directly to platform target dir
-                target_dir = target_base
+            # Empty string means copy directly to platform target dir
+            target_dir = target_base / target_subdir if target_subdir else target_base
 
             # Copy all matching files from source directory
             for source_file in source_dir.rglob("*"):

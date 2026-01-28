@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from ayaiay.config import Config
-from ayaiay.installer import PLATFORMS, Installer, PlatformConfig
+from ayaiay.installer import Installer
 from ayaiay.models import Pack, PackType, PackVersion
 
 
