@@ -280,6 +280,8 @@ def validate(path: Path, quiet: bool) -> None:
                     counts.append(f"{len(result.manifest.instructions)} instructions")
                 if result.manifest.prompts:
                     counts.append(f"{len(result.manifest.prompts)} prompts")
+                if result.manifest.skills:
+                    counts.append(f"{len(result.manifest.skills)} skills")
 
                 if counts:
                     info.append("Contents: ", style="dim")

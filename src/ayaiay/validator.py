@@ -113,6 +113,23 @@ MANIFEST_SCHEMA: dict[str, Any] = {
             },
             "description": "Prompt template definitions",
         },
+        "skills": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["name", "content"],
+                "properties": {
+                    "name": {"type": "string", "minLength": 1},
+                    "description": {"type": "string"},
+                    "content": {"type": "string", "minLength": 1},
+                    "parameters": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                },
+            },
+            "description": "Skill definitions",
+        },
         "dependencies": {
             "type": "object",
             "additionalProperties": {"type": "string"},
@@ -225,15 +242,17 @@ def validate_manifest(path: Path | str) -> ValidationResult:
 def _validate_semantic_rules(result: ValidationResult, data: dict[str, Any]) -> None:
     """Perform semantic validation rules."""
     # Check for at least one content type
-    has_content = any(data.get(key) for key in ("agents", "instructions", "prompts"))
+    has_content = any(
+        data.get(key) for key in ("agents", "instructions", "prompts", "skills")
+    )
     if not has_content:
         result.add_warning(
-            "Pack has no agents, instructions, or prompts defined. "
+            "Pack has no agents, instructions, prompts, or skills defined. "
             "Consider adding at least one."
         )
 
     # Check for duplicate names within categories
-    for category in ("agents", "instructions", "prompts"):
+    for category in ("agents", "instructions", "prompts", "skills"):
         items = data.get(category, [])
         names = [item.get("name") for item in items if item.get("name")]
         duplicates = [name for name in set(names) if names.count(name) > 1]

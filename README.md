@@ -262,6 +262,18 @@ prompts:
       - code
       - focus_areas
 
+skills:
+  - name: code-analyzer
+    description: Analyzes code structure and patterns
+    content: |
+      Analyze the provided code and identify:
+      - Design patterns used
+      - Code complexity metrics
+      - Potential refactoring opportunities
+    parameters:
+      - file_path
+      - language
+
 dependencies:
   base-pack: "^1.0.0"
 ```
