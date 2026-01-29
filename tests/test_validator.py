@@ -63,6 +63,14 @@ class TestValidateManifest:
                     "variables": ["language", "code"],
                 }
             ],
+            "skills": [
+                {
+                    "name": "code-analyzer",
+                    "description": "Analyzes code for patterns",
+                    "content": "Analyze code structure and patterns.",
+                    "parameters": ["file_path", "language"],
+                }
+            ],
             "dependencies": {
                 "base-pack": "^1.0.0",
             },
@@ -79,6 +87,7 @@ class TestValidateManifest:
         assert len(result.manifest.agents) == 1
         assert len(result.manifest.instructions) == 1
         assert len(result.manifest.prompts) == 1
+        assert len(result.manifest.skills) == 1
 
     def test_missing_required_name(self, tmp_path: Path) -> None:
         """Test validation fails when name is missing."""
@@ -183,6 +192,69 @@ class TestValidateManifest:
 
         assert not result.is_valid
         assert any("version constraint" in error.lower() for error in result.errors)
+
+    def test_valid_skill_definition(self, tmp_path: Path) -> None:
+        """Test validation succeeds for valid skill definition."""
+        manifest_data = {
+            "name": "skill-pack",
+            "skills": [
+                {
+                    "name": "file-reader",
+                    "description": "Reads files from the filesystem",
+                    "content": "Read and return file contents.",
+                    "parameters": ["file_path", "encoding"],
+                }
+            ],
+        }
+        manifest_path = tmp_path / "ayaiay.yaml"
+        with open(manifest_path, "w") as f:
+            yaml.dump(manifest_data, f)
+
+        result = validate_manifest(manifest_path)
+
+        assert result.is_valid
+        assert result.manifest is not None
+        assert len(result.manifest.skills) == 1
+        assert result.manifest.skills[0].name == "file-reader"
+        assert result.manifest.skills[0].parameters == ["file_path", "encoding"]
+
+    def test_skill_missing_required_field(self, tmp_path: Path) -> None:
+        """Test validation fails when skill is missing required content field."""
+        manifest_data = {
+            "name": "bad-skill-pack",
+            "skills": [
+                {
+                    "name": "incomplete-skill",
+                    "description": "Missing content field",
+                }
+            ],
+        }
+        manifest_path = tmp_path / "ayaiay.yaml"
+        with open(manifest_path, "w") as f:
+            yaml.dump(manifest_data, f)
+
+        result = validate_manifest(manifest_path)
+
+        assert not result.is_valid
+        assert any("content" in error.lower() for error in result.errors)
+
+    def test_duplicate_skill_names(self, tmp_path: Path) -> None:
+        """Test validation fails for duplicate skill names."""
+        manifest_data = {
+            "name": "dup-skill-pack",
+            "skills": [
+                {"name": "skill-one", "content": "First skill"},
+                {"name": "skill-one", "content": "Duplicate skill"},
+            ],
+        }
+        manifest_path = tmp_path / "ayaiay.yaml"
+        with open(manifest_path, "w") as f:
+            yaml.dump(manifest_data, f)
+
+        result = validate_manifest(manifest_path)
+
+        assert not result.is_valid
+        assert any("duplicate" in error.lower() for error in result.errors)
 
 
 class TestLoadManifest:

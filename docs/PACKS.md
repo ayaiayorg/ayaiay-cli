@@ -7,6 +7,7 @@ Ein Pack ist eine Sammlung von:
 - **Agents** (`agent`)
 - **Instructions** (`instruction`)
 - **Prompts** (`prompt`)
+- **Skills** (`skill`)
 
 ## Pack-Referenzen
 
@@ -35,6 +36,7 @@ Ein Pack wird durch eine ayaiay.yaml beschrieben. Felder (Schema v1.0):
 - `agents`: Liste von Agenten-Definitionen
 - `instructions`: Liste von Instruktions-Definitionen
 - `prompts`: Liste von Prompt-Definitionen
+- `skills`: Liste von Skill-Definitionen
 - `dependencies`: Abhängigkeiten (`name: version`)
 - `metadata`: Freie Metadaten
 
@@ -58,6 +60,13 @@ Ein Pack wird durch eine ayaiay.yaml beschrieben. Felder (Schema v1.0):
 - `description`
 - `template`
 - `variables`
+
+### Skill-Definition
+
+- `name`: Skill-Name
+- `description`: Kurzbeschreibung
+- `content`: Skill-Implementierung/Inhalt
+- `parameters`: Liste von Parametern
 
 ## Beispiel-Manifest
 
@@ -94,6 +103,15 @@ prompts:
     template: |
       Please review the following {language} code:
     variables:
+      - language
+
+skills:
+  - name: code-analyzer
+    description: Analyzes code structure
+    content: |
+      Analyze code for patterns and complexity.
+    parameters:
+      - file_path
       - language
 
 dependencies:

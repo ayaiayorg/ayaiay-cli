@@ -97,6 +97,15 @@ class ManifestPrompt(BaseModel):
     variables: list[str] = Field(default_factory=list, description="Template variables")
 
 
+class ManifestSkill(BaseModel):
+    """Skill definition in ayaiay.yaml manifest."""
+
+    name: str = Field(..., description="Skill name")
+    description: str | None = Field(None, description="Skill description")
+    content: str = Field(..., description="Skill content/implementation")
+    parameters: list[str] = Field(default_factory=list, description="Skill parameters")
+
+
 class Manifest(BaseModel):
     """AyAiAy pack manifest (ayaiay.yaml)."""
 
@@ -115,6 +124,9 @@ class Manifest(BaseModel):
     )
     prompts: list[ManifestPrompt] = Field(
         default_factory=list, description="Prompt definitions"
+    )
+    skills: list[ManifestSkill] = Field(
+        default_factory=list, description="Skill definitions"
     )
     dependencies: dict[str, str] = Field(
         default_factory=dict, description="Pack dependencies"
