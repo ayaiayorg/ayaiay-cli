@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 import httpx
@@ -398,6 +399,244 @@ def show(ctx: click.Context, reference: str) -> None:
 
         if len(versions) > 10:
             console.print(f"[dim]... and {len(versions) - 10} more versions[/dim]")
+
+
+@main.command("init-pack")
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(path_type=Path),
+    help="Path where to create the pack (default: current directory)",
+)
+def init_pack(path: Path | None) -> None:
+    """Initialize a new pack with interactive prompts.
+
+    Creates a new ayaiay.yaml manifest file with selected artifacts
+    (agents, instructions, prompts, skills).
+
+    Example:
+        ayaiay init-pack
+        ayaiay init-pack --path /path/to/new-pack
+    """
+    import yaml
+
+    target_path = path or Path.cwd()
+    manifest_path = target_path / "ayaiay.yaml"
+
+    if manifest_path.exists():
+        print_error(f"Manifest already exists: {manifest_path}")
+        console.print("[dim]Use a different path or remove the existing file.[/dim]")
+        sys.exit(1)
+
+    console.print(
+        Panel(
+            "[bold cyan]Pack Initialization Wizard[/bold cyan]\n\n"
+            "This wizard will help you create a new pack manifest.",
+            border_style="cyan",
+        )
+    )
+
+    # Basic pack information
+    console.print("\n[bold]Basic Information[/bold]")
+
+    pack_name = click.prompt("Pack name (e.g., my-awesome-pack)", type=str)
+    description = click.prompt(
+        "Description", type=str, default="", show_default=False
+    )
+    author = click.prompt("Author", type=str, default="", show_default=False)
+    license_type = click.prompt("License", type=str, default="MIT")
+    repository = click.prompt(
+        "Repository URL", type=str, default="", show_default=False
+    )
+
+    tags_input = click.prompt(
+        "Tags (comma-separated)", type=str, default="", show_default=False
+    )
+    tags = [tag.strip() for tag in tags_input.split(",") if tag.strip()]
+
+    # Artifact collection
+    manifest_data: dict[str, Any] = {
+        "version": "1.0",
+        "name": pack_name,
+    }
+
+    if description:
+        manifest_data["description"] = description
+    if author:
+        manifest_data["author"] = author
+    if license_type:
+        manifest_data["license"] = license_type
+    if repository:
+        manifest_data["repository"] = repository
+    if tags:
+        manifest_data["tags"] = tags
+
+    # Ask about each artifact type
+    console.print("\n[bold]Artifacts[/bold]")
+    console.print("[dim]Select which artifacts you want to add to your pack.[/dim]")
+
+    # Agents
+    if click.confirm("\nAdd agents?", default=False):
+        agents = []
+        while True:
+            console.print("\n[cyan]Agent Configuration[/cyan]")
+            agent_name = click.prompt("  Agent name", type=str)
+            agent_desc = click.prompt(
+                "  Description", type=str, default="", show_default=False
+            )
+            system_prompt = click.prompt(
+                "  System prompt", type=str, default="", show_default=False
+            )
+            model = click.prompt(
+                "  Preferred model (e.g., gpt-4, claude-3)",
+                type=str,
+                default="",
+                show_default=False,
+            )
+            tools_input = click.prompt(
+                "  Required tools (comma-separated)",
+                type=str,
+                default="",
+                show_default=False,
+            )
+            tools = [t.strip() for t in tools_input.split(",") if t.strip()]
+
+            agent: dict[str, Any] = {"name": agent_name}
+            if agent_desc:
+                agent["description"] = agent_desc
+            if system_prompt:
+                agent["system_prompt"] = system_prompt
+            if model:
+                agent["model"] = model
+            if tools:
+                agent["tools"] = tools
+
+            agents.append(agent)
+
+            if not click.confirm("Add another agent?", default=False):
+                break
+
+        manifest_data["agents"] = agents
+
+    # Instructions
+    if click.confirm("\nAdd instructions?", default=False):
+        instructions = []
+        while True:
+            console.print("\n[cyan]Instruction Configuration[/cyan]")
+            instruction_name = click.prompt("  Instruction name", type=str)
+            instruction_desc = click.prompt(
+                "  Description", type=str, default="", show_default=False
+            )
+            content = click.prompt("  Content", type=str)
+
+            instruction: dict[str, Any] = {"name": instruction_name, "content": content}
+            if instruction_desc:
+                instruction["description"] = instruction_desc
+
+            instructions.append(instruction)
+
+            if not click.confirm("Add another instruction?", default=False):
+                break
+
+        manifest_data["instructions"] = instructions
+
+    # Prompts
+    if click.confirm("\nAdd prompts?", default=False):
+        prompts = []
+        while True:
+            console.print("\n[cyan]Prompt Configuration[/cyan]")
+            prompt_name = click.prompt("  Prompt name", type=str)
+            prompt_desc = click.prompt(
+                "  Description", type=str, default="", show_default=False
+            )
+            template = click.prompt("  Template", type=str)
+            variables_input = click.prompt(
+                "  Variables (comma-separated)",
+                type=str,
+                default="",
+                show_default=False,
+            )
+            variables = [v.strip() for v in variables_input.split(",") if v.strip()]
+
+            prompt: dict[str, Any] = {"name": prompt_name, "template": template}
+            if prompt_desc:
+                prompt["description"] = prompt_desc
+            if variables:
+                prompt["variables"] = variables
+
+            prompts.append(prompt)
+
+            if not click.confirm("Add another prompt?", default=False):
+                break
+
+        manifest_data["prompts"] = prompts
+
+    # Skills
+    if click.confirm("\nAdd skills?", default=False):
+        skills = []
+        while True:
+            console.print("\n[cyan]Skill Configuration[/cyan]")
+            skill_name = click.prompt("  Skill name", type=str)
+            skill_desc = click.prompt(
+                "  Description", type=str, default="", show_default=False
+            )
+            skill_content = click.prompt("  Content/Implementation", type=str)
+            parameters_input = click.prompt(
+                "  Parameters (comma-separated)",
+                type=str,
+                default="",
+                show_default=False,
+            )
+            parameters = [p.strip() for p in parameters_input.split(",") if p.strip()]
+
+            skill: dict[str, Any] = {"name": skill_name, "content": skill_content}
+            if skill_desc:
+                skill["description"] = skill_desc
+            if parameters:
+                skill["parameters"] = parameters
+
+            skills.append(skill)
+
+            if not click.confirm("Add another skill?", default=False):
+                break
+
+        manifest_data["skills"] = skills
+
+    # Write manifest file
+    target_path.mkdir(parents=True, exist_ok=True)
+
+    with open(manifest_path, "w") as f:
+        yaml.dump(manifest_data, f, default_flow_style=False, sort_keys=False)
+
+    print_success(f"Created pack manifest: {manifest_path}")
+
+    # Validate the created manifest
+    result = validate_manifest(manifest_path)
+
+    if result.is_valid:
+        console.print("[green]✓[/green] Manifest is valid!")
+
+        # Show summary
+        counts = []
+        if manifest_data.get("agents"):
+            counts.append(f"{len(manifest_data['agents'])} agent(s)")
+        if manifest_data.get("instructions"):
+            counts.append(f"{len(manifest_data['instructions'])} instruction(s)")
+        if manifest_data.get("prompts"):
+            counts.append(f"{len(manifest_data['prompts'])} prompt(s)")
+        if manifest_data.get("skills"):
+            counts.append(f"{len(manifest_data['skills'])} skill(s)")
+
+        if counts:
+            console.print(f"[dim]Added: {', '.join(counts)}[/dim]")
+
+        for warning in result.warnings:
+            print_warning(warning)
+    else:
+        print_error("Created manifest has validation errors:")
+        for error in result.errors:
+            console.print(f"  [red]•[/red] {error}")
+        sys.exit(1)
 
 
 @main.command()
