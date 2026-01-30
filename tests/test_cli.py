@@ -304,3 +304,166 @@ class TestInfoCommand:
             assert result.exit_code == 0
             assert "api" in result.output.lower()
             assert "ayaiay.org" in result.output.lower()
+
+
+class TestInitPackCommand:
+    """Tests for the init-pack command."""
+
+    def test_init_pack_creates_manifest(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-pack creates a valid manifest file."""
+        # Simulate user input for creating a minimal pack
+        user_input = (
+            "test-pack\n"  # pack name
+            "A test pack\n"  # description
+            "Test Author\n"  # author
+            "MIT\n"  # license
+            "https://github.com/test/test-pack\n"  # repository
+            "testing,demo\n"  # tags
+            "n\n"  # no agents
+            "n\n"  # no instructions
+            "n\n"  # no prompts
+            "n\n"  # no skills
+        )
+
+        result = runner.invoke(
+            main, ["init-pack", "--path", str(tmp_path)], input=user_input
+        )
+
+        assert result.exit_code == 0
+        assert "Created pack manifest" in result.output
+        assert "Manifest is valid" in result.output
+
+        manifest_path = tmp_path / "ayaiay.yaml"
+        assert manifest_path.exists()
+
+        with open(manifest_path) as f:
+            manifest = yaml.safe_load(f)
+            assert manifest["name"] == "test-pack"
+            assert manifest["description"] == "A test pack"
+            assert manifest["author"] == "Test Author"
+            assert manifest["license"] == "MIT"
+            assert manifest["tags"] == ["testing", "demo"]
+
+    def test_init_pack_with_agent(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-pack creates manifest with an agent."""
+        user_input = (
+            "agent-pack\n"  # pack name
+            "\n"  # description (empty)
+            "\n"  # author (empty)
+            "MIT\n"  # license
+            "\n"  # repository (empty)
+            "\n"  # tags (empty)
+            "y\n"  # add agents
+            "test-agent\n"  # agent name
+            "A test agent\n"  # agent description
+            "You are helpful\n"  # system prompt
+            "gpt-4\n"  # model
+            "read_file,write_file\n"  # tools
+            "n\n"  # no more agents
+            "n\n"  # no instructions
+            "n\n"  # no prompts
+            "n\n"  # no skills
+        )
+
+        result = runner.invoke(
+            main, ["init-pack", "--path", str(tmp_path)], input=user_input
+        )
+
+        assert result.exit_code == 0
+
+        manifest_path = tmp_path / "ayaiay.yaml"
+        with open(manifest_path) as f:
+            manifest = yaml.safe_load(f)
+            assert len(manifest.get("agents", [])) == 1
+            agent = manifest["agents"][0]
+            assert agent["name"] == "test-agent"
+            assert agent["description"] == "A test agent"
+            assert agent["system_prompt"] == "You are helpful"
+            assert agent["model"] == "gpt-4"
+            assert agent["tools"] == ["read_file", "write_file"]
+
+    def test_init_pack_with_all_artifacts(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-pack creates manifest with all artifact types."""
+        user_input = (
+            "full-pack\n"  # pack name
+            "Full pack\n"  # description
+            "Author\n"  # author
+            "MIT\n"  # license
+            "\n"  # repository (empty)
+            "tag1,tag2\n"  # tags
+            "y\n"  # add agents
+            "agent1\n"  # agent name
+            "Desc\n"  # agent description
+            "Prompt\n"  # system prompt
+            "gpt-4\n"  # model
+            "tool1\n"  # tools
+            "n\n"  # no more agents
+            "y\n"  # add instructions
+            "instr1\n"  # instruction name
+            "Instr desc\n"  # instruction description
+            "Content\n"  # content
+            "n\n"  # no more instructions
+            "y\n"  # add prompts
+            "prompt1\n"  # prompt name
+            "Prompt desc\n"  # prompt description
+            "Template {var}\n"  # template
+            "var\n"  # variables
+            "n\n"  # no more prompts
+            "y\n"  # add skills
+            "skill1\n"  # skill name
+            "Skill desc\n"  # skill description
+            "Skill content\n"  # content
+            "param1\n"  # parameters
+            "n\n"  # no more skills
+        )
+
+        result = runner.invoke(
+            main, ["init-pack", "--path", str(tmp_path)], input=user_input
+        )
+
+        assert result.exit_code == 0
+        assert "1 agent(s)" in result.output
+        assert "1 instruction(s)" in result.output
+        assert "1 prompt(s)" in result.output
+        assert "1 skill(s)" in result.output
+
+        manifest_path = tmp_path / "ayaiay.yaml"
+        with open(manifest_path) as f:
+            manifest = yaml.safe_load(f)
+            assert len(manifest.get("agents", [])) == 1
+            assert len(manifest.get("instructions", [])) == 1
+            assert len(manifest.get("prompts", [])) == 1
+            assert len(manifest.get("skills", [])) == 1
+
+    def test_init_pack_fails_if_manifest_exists(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-pack fails if manifest already exists."""
+        manifest_path = tmp_path / "ayaiay.yaml"
+        manifest_path.touch()
+
+        result = runner.invoke(main, ["init-pack", "--path", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+
+    def test_init_pack_default_path(self, runner: CliRunner) -> None:
+        """Test init-pack uses current directory by default."""
+        user_input = (
+            "test-pack\n"  # pack name
+            "\n"  # description (empty)
+            "\n"  # author (empty)
+            "MIT\n"  # license
+            "\n"  # repository (empty)
+            "\n"  # tags (empty)
+            "n\n"  # no agents
+            "n\n"  # no instructions
+            "n\n"  # no prompts
+            "n\n"  # no skills
+        )
+
+        # Use runner's isolated filesystem
+        with runner.isolated_filesystem():
+            result = runner.invoke(main, ["init-pack"], input=user_input)
+
+            assert result.exit_code == 0
+            assert Path("ayaiay.yaml").exists()
+

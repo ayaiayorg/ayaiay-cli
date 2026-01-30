@@ -124,6 +124,16 @@ ayaiay validate ayaiay.yaml
 ayaiay validate ./my-pack/ayaiay.yaml
 ```
 
+### Create New Packs
+
+```bash
+# Initialize a new pack interactively
+ayaiay init-pack
+
+# Initialize in a specific directory
+ayaiay init-pack --path /path/to/new-pack
+```
+
 ### CLI Configuration
 
 ```bash
@@ -212,7 +222,33 @@ timeout: 30.0
 
 ## Creating Packs
 
-To publish your own packs, create an `ayaiay.yaml` manifest in your repository:
+### Interactive Pack Initialization
+
+The easiest way to create a new pack is using the interactive wizard:
+
+```bash
+# Initialize a new pack in the current directory
+ayaiay init-pack
+
+# Initialize in a specific directory
+ayaiay init-pack --path /path/to/new-pack
+```
+
+The wizard will guide you through:
+1. **Basic Information**: Pack name, description, author, license, repository, and tags
+2. **Artifacts Selection**: Choose which artifacts to include:
+   - **Agents**: AI agents with system prompts and model preferences
+   - **Instructions**: Reusable instruction sets for guiding agent behavior
+   - **Prompts**: Template prompts with variables for common tasks
+   - **Skills**: Specific capabilities or actions agents can perform
+3. **Artifact Details**: For each selected artifact type, provide names, descriptions, and content
+4. **Validation**: Automatically validates the generated manifest
+
+The command creates an `ayaiay.yaml` manifest file that you can further customize.
+
+### Manual Pack Creation
+
+You can also manually create an `ayaiay.yaml` manifest in your repository:
 
 ```yaml
 version: "1.0"
