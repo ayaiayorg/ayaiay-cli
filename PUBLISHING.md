@@ -57,15 +57,15 @@ This section is for maintainers who want to publish the package to PyPI.
 1. **PyPI Account**: Create accounts on both [PyPI](https://pypi.org) and [TestPyPI](https://test.pypi.org)
 
 2. **Trusted Publisher Setup** (Recommended - No tokens needed):
-   
+
    a. Go to PyPI → Your Account → Publishing
-   
+
    b. Add a new Trusted Publisher with:
    - Owner: `ayaiayorg`
    - Repository name: `ayaiay-cli`
    - Workflow name: `publish.yml`
    - Environment name: `pypi`
-   
+
    c. Repeat for TestPyPI with environment name: `testpypi`
 
 3. **GitHub Repository Settings**:
@@ -157,14 +157,14 @@ Before publishing a new version:
 
 **Issue**: Trusted Publisher authentication fails
 
-**Solution**: 
+**Solution**:
 - Verify the Trusted Publisher is configured correctly on PyPI
 - Check that the workflow name and environment name match exactly
 - Ensure the workflow is running from the correct branch (usually `main`)
 
 **Issue**: Version already exists on PyPI
 
-**Solution**: 
+**Solution**:
 - PyPI doesn't allow overwriting existing versions
 - Bump the version number and publish again
 - Delete the version on PyPI if it's broken (must be done within 24 hours)

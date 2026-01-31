@@ -479,7 +479,7 @@ Configure email notifications for workflow results:
     subject: "Agent Workflow: Issue #${{ github.event.issue.number }}"
     body: |
       The agent has processed issue #${{ github.event.issue.number }}.
-      
+
       Status: ${{ job.status }}
       Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     to: your-email@example.com
@@ -555,12 +555,12 @@ gh secret set SLACK_WEBHOOK_URL --body "https://hooks.slack.com/..."
 Title: Add JSON export to CLI
 
 Description:
-Add a --format json option to all ayaiay commands that 
+Add a --format json option to all ayaiay commands that
 currently only output human-readable text.
 
 Requirements:
 - Add --format option with choices: text, json
-- Default to text for backward compatibility  
+- Default to text for backward compatibility
 - Use json.dumps for JSON output
 - Add tests
 ```
@@ -578,7 +578,7 @@ Requirements:
 Title: Fix crash when API returns 500 error
 
 Description:
-The CLI crashes with an unhandled exception when the 
+The CLI crashes with an unhandled exception when the
 API returns a 500 status code.
 
 Requirements:
@@ -601,7 +601,7 @@ Requirements:
 Title: Extract API client into separate module
 
 Description:
-The API client code is mixed with CLI code. Extract it 
+The API client code is mixed with CLI code. Extract it
 into a separate, testable module.
 
 Requirements:

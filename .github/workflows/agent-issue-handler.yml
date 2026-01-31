@@ -29,7 +29,7 @@ jobs:
       issue-number: ${{ github.event.issue.number }}
       issue-title: ${{ steps.extract.outputs.title }}
       issue-body: ${{ steps.extract.outputs.body }}
-    
+
     steps:
       - name: Check for agent labels
         id: check
@@ -37,7 +37,7 @@ jobs:
           # Check if issue has agent-task or automation label
           LABELS='${{ toJSON(github.event.issue.labels.*.name) }}'
           echo "Issue labels: $LABELS"
-          
+
           if echo "$LABELS" | grep -q "agent-task\|automation"; then
             echo "should-process=true" >> $GITHUB_OUTPUT
             echo "✅ Issue has agent label, will process"
@@ -45,7 +45,7 @@ jobs:
             echo "should-process=false" >> $GITHUB_OUTPUT
             echo "ℹ️  Issue does not have agent label, skipping"
           fi
-      
+
       - name: Extract issue details
         id: extract
         if: steps.check.outputs.should-process == 'true'
@@ -53,14 +53,14 @@ jobs:
           # Extract and sanitize issue details
           TITLE=$(jq -r '.issue.title' <<< '${{ toJSON(github.event) }}')
           BODY=$(jq -r '.issue.body // ""' <<< '${{ toJSON(github.event) }}')
-          
+
           # Set outputs (GitHub Actions automatically handles multiline)
           {
             echo "title<<EOF"
             echo "$TITLE"
             echo "EOF"
           } >> $GITHUB_OUTPUT
-          
+
           {
             echo "body<<EOF"
             echo "$BODY"
@@ -75,7 +75,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-    
+
     steps:
       - name: Comment on issue - Starting
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -83,7 +83,7 @@ jobs:
           script: |
             const issueNumber = ${{ needs.check-label.outputs.issue-number }};
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -117,38 +117,38 @@ jobs:
     outputs:
       pr-url: ${{ steps.pr.outputs.pr-url }}
       pr-number: ${{ steps.pr.outputs.pr-number }}
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Set up Python
         uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
         with:
           python-version: '3.11'
           cache: 'pip'
-      
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      
+
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-      
+
       - name: Create working branch
         id: branch
         run: |
           ISSUE_NUMBER="${{ needs.check-label.outputs.issue-number }}"
           BRANCH_NAME="agent/issue-${ISSUE_NUMBER}"
-          
+
           echo "branch-name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
-          
+
           # Check if branch already exists
           if git ls-remote --heads origin "$BRANCH_NAME" | grep -q "$BRANCH_NAME"; then
             echo "⚠️  Branch already exists, will use existing branch"
@@ -158,43 +158,43 @@ jobs:
             echo "✅ Creating new branch: $BRANCH_NAME"
             git checkout -b "$BRANCH_NAME"
           fi
-      
+
       - name: Analyze issue and generate plan
         id: analyze
         run: |
           ISSUE_TITLE="${{ needs.check-label.outputs.issue-title }}"
           ISSUE_BODY="${{ needs.check-label.outputs.issue-body }}"
-          
+
           echo "📋 Analyzing issue..."
           echo "Title: $ISSUE_TITLE"
-          
+
           # Create analysis report
           cat > /tmp/analysis.txt <<ANALYSIS_EOF
           Issue Analysis Report
           =====================
-          
+
           Title: $ISSUE_TITLE
-          
+
           Body:
           $ISSUE_BODY
-          
+
           Recommended Actions:
           - Review issue requirements
           - Identify affected files
           - Plan implementation approach
           - Run comprehensive tests
           ANALYSIS_EOF
-          
+
           echo "plan<<EOF" >> $GITHUB_OUTPUT
           cat /tmp/analysis.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-          
+
           echo "✅ Analysis complete"
-      
+
       - name: Install AI code generation dependencies
         run: |
           pip install anthropic openai aider-chat
-      
+
       - name: Execute automated changes
         id: changes
         continue-on-error: true
@@ -206,15 +206,15 @@ jobs:
           ISSUE_NUMBER: ${{ needs.check-label.outputs.issue-number }}
         run: |
           set -e
-          
+
           echo "🔧 Executing automated code changes..."
-          
+
           # Create the agent script
           cat > /tmp/agent_coder.py <<'AGENT_SCRIPT'
           #!/usr/bin/env python3
           """
           Automated Code Generation Agent
-          
+
           This agent uses AI to generate actual code changes based on GitHub issue requirements.
           It supports multiple AI providers: Anthropic Claude, OpenAI GPT, or falls back to
           rule-based generation if no API keys are available.
@@ -225,8 +225,8 @@ jobs:
           import subprocess
           from pathlib import Path
           from typing import Optional, Dict, List, Tuple
-          
-          
+
+
           def get_project_context() -> Dict[str, any]:
               """Gather context about the project structure and codebase."""
               context = {
@@ -235,7 +235,7 @@ jobs:
                   "readme": None,
                   "pyproject": None,
               }
-              
+
               # Get project files
               try:
                   result = subprocess.run(
@@ -249,7 +249,7 @@ jobs:
                       context["files"] = result.stdout.strip().split("\n")
               except Exception as e:
                   print(f"⚠️  Error getting project files: {e}")
-              
+
               # Read README
               try:
                   readme_path = Path("README.md")
@@ -257,7 +257,7 @@ jobs:
                       context["readme"] = readme_path.read_text()[:2000]  # First 2k chars
               except Exception as e:
                   print(f"⚠️  Error reading README: {e}")
-              
+
               # Read pyproject.toml
               try:
                   pyproject_path = Path("pyproject.toml")
@@ -265,10 +265,10 @@ jobs:
                       context["pyproject"] = pyproject_path.read_text()
               except Exception as e:
                   print(f"⚠️  Error reading pyproject.toml: {e}")
-              
+
               return context
-          
-          
+
+
           def sanitize_input(text: str) -> str:
               """Sanitize user input to prevent command injection."""
               if not text:
@@ -277,29 +277,29 @@ jobs:
               sanitized = "".join(char for char in text if char == '\n' or char == '\t' or (ord(char) >= 32 and ord(char) != 127))
               # Limit length to prevent excessive input
               return sanitized[:10000]
-          
-          
+
+
           def use_aider_for_changes(issue_title: str, issue_body: str) -> Tuple[bool, str]:
               """Use Aider (AI pair programming tool) to implement changes."""
               try:
                   # Check if API keys are available
                   has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
                   has_openai = bool(os.getenv("OPENAI_API_KEY"))
-                  
+
                   if not (has_anthropic or has_openai):
                       return False, "No AI API keys available"
-                  
+
                   # Sanitize inputs to prevent injection
                   safe_title = sanitize_input(issue_title)
                   safe_body = sanitize_input(issue_body)
-                  
+
                   # Construct the prompt for aider
                   prompt = f"""
           Issue Title: {safe_title}
-          
+
           Issue Description:
           {safe_body}
-          
+
           Please implement the changes described in this issue. Follow these guidelines:
           1. Analyze the existing codebase structure
           2. Implement the feature or fix as described
@@ -308,17 +308,17 @@ jobs:
           5. Update or add docstrings
           6. Create or update tests if applicable
           7. Update documentation if needed
-          
+
           Make the implementation production-ready and maintainable.
           """
-                  
+
                   # Use Aider with appropriate model
                   model_arg = []
                   if has_anthropic:
                       model_arg = ["--model", "claude-3-5-sonnet-20241022"]
                   elif has_openai:
                       model_arg = ["--model", "gpt-4-turbo-preview"]
-                  
+
                   # Run aider in auto mode (shell=False for security)
                   result = subprocess.run(
                       [
@@ -335,31 +335,31 @@ jobs:
                       timeout=300,  # 5 minute timeout
                       shell=False,  # Explicit for security
                   )
-                  
+
                   if result.returncode == 0:
                       return True, "Aider successfully generated changes"
                   else:
                       return False, f"Aider failed: {result.stderr}"
-              
+
               except subprocess.TimeoutExpired:
                   return False, "Aider timed out after 5 minutes"
               except Exception as e:
                   return False, f"Error running Aider: {str(e)}"
-          
-          
+
+
           def use_direct_ai_api(issue_title: str, issue_body: str, context: Dict) -> Tuple[bool, str]:
               """Use AI API directly to generate code changes."""
               try:
                   # Sanitize inputs to prevent injection
                   safe_title = sanitize_input(issue_title)
                   safe_body = sanitize_input(issue_body)
-                  
+
                   # Prepare the prompt with context
                   files_list = "\n".join(f"- {f}" for f in context.get("files", [])[:20])
-                  
-                  system_prompt = """You are an expert Python developer. You will receive a GitHub issue 
+
+                  system_prompt = """You are an expert Python developer. You will receive a GitHub issue
           describing a feature request or bug fix. Generate the necessary code changes to implement it.
-          
+
           Provide your response as a JSON object with this structure:
           {
             "files_to_create": [{"path": "path/to/file.py", "content": "file content"}],
@@ -367,26 +367,26 @@ jobs:
             "implementation_notes": "brief notes about the implementation"
           }
           """
-                  
+
                   user_prompt = f"""
           Project Context:
           - This is a Python CLI tool for the AyAiAy.org AI agents marketplace
-          - Project files: 
+          - Project files:
           {files_list}
-          
+
           Issue Title: {safe_title}
-          
+
           Issue Description:
           {safe_body}
-          
+
           Please provide the code implementation for this issue. Be specific and complete.
           """
-                  
+
                   # Try Anthropic Claude first
                   if os.getenv("ANTHROPIC_API_KEY"):
                       try:
                           import anthropic
-                          
+
                           client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
                           message = client.messages.create(
                               model="claude-3-5-sonnet-20241022",
@@ -394,18 +394,18 @@ jobs:
                               system=system_prompt,
                               messages=[{"role": "user", "content": user_prompt}],
                           )
-                          
+
                           response_text = message.content[0].text
                           return process_ai_response(response_text, issue_title)
                       except Exception as api_error:
                           print(f"⚠️  Anthropic API error: {api_error}")
                           # Continue to OpenAI fallback
-                  
+
                   # Try OpenAI GPT
                   if os.getenv("OPENAI_API_KEY"):
                       try:
                           import openai
-                          
+
                           client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
                           response = client.chat.completions.create(
                               model="gpt-4-turbo-preview",
@@ -415,19 +415,19 @@ jobs:
                               ],
                               max_tokens=4096,
                           )
-                          
+
                           response_text = response.choices[0].message.content
                           return process_ai_response(response_text, issue_title)
                       except Exception as api_error:
                           print(f"⚠️  OpenAI API error: {api_error}")
                           # Fall through to no API keys available message
-                  
+
                   return False, "No AI API keys available"
-              
+
               except Exception as e:
                   return False, f"Error using AI API: {str(e)}"
-          
-          
+
+
           def process_ai_response(response_text: str, issue_title: str) -> Tuple[bool, str]:
               """Process the AI response and apply changes."""
               try:
@@ -440,24 +440,24 @@ jobs:
                       # If no JSON, create a documentation file with the response
                       docs_dir = Path("docs/agent-implementations")
                       docs_dir.mkdir(parents=True, exist_ok=True)
-                      
+
                       issue_num = os.getenv("ISSUE_NUMBER", "unknown")
                       doc_file = docs_dir / f"issue-{issue_num}.md"
-                      
+
                       doc_file.write_text(f"""# Implementation for: {issue_title}
-          
+
           ## AI-Generated Implementation Plan
-          
+
           {response_text}
-          
+
           ## Status
-          
+
           This implementation plan was generated by the automated agent.
           Manual review and implementation may be required for complex changes.
           """)
-                      
+
                       return True, f"Created implementation plan at {doc_file}"
-                  
+
                   # Apply file creations
                   files_created = []
                   for file_spec in data.get("files_to_create", []):
@@ -465,231 +465,231 @@ jobs:
                       file_path.parent.mkdir(parents=True, exist_ok=True)
                       file_path.write_text(file_spec["content"])
                       files_created.append(str(file_path))
-                  
+
                   # Document file modifications
                   if data.get("files_to_modify"):
                       docs_dir = Path("docs/agent-implementations")
                       docs_dir.mkdir(parents=True, exist_ok=True)
-                      
+
                       issue_num = os.getenv("ISSUE_NUMBER", "unknown")
                       mod_file = docs_dir / f"issue-{issue_num}-modifications.md"
-                      
+
                       mod_content = f"# Modifications for: {issue_title}\n\n"
                       for mod in data["files_to_modify"]:
                           mod_content += f"## {mod['path']}\n\n{mod['changes']}\n\n"
-                      
+
                       mod_file.write_text(mod_content)
-                  
+
                   notes = data.get("implementation_notes", "No additional notes")
                   result_msg = f"Created {len(files_created)} files. Notes: {notes}"
-                  
+
                   return True, result_msg
-              
+
               except Exception as e:
                   return False, f"Error processing AI response: {str(e)}"
-          
-          
+
+
           def generate_rule_based_implementation(issue_title: str, issue_body: str) -> Tuple[bool, str]:
               """Fallback: Generate a structured implementation plan without AI APIs."""
               try:
                   issue_num = os.getenv("ISSUE_NUMBER", "unknown")
-                  
+
                   # Create implementation directory
                   impl_dir = Path("docs/agent-implementations")
                   impl_dir.mkdir(parents=True, exist_ok=True)
-                  
+
                   # Generate implementation plan
                   plan_file = impl_dir / f"issue-{issue_num}-plan.md"
                   plan_file.write_text(f"""# Implementation Plan: {issue_title}
-          
+
           ## Issue Details
-          
+
           **Issue Number:** #{issue_num}
           **Title:** {issue_title}
-          
+
           ## Description
-          
+
           {issue_body}
-          
+
           ## Proposed Implementation
-          
+
           ### Analysis
-          
+
           This issue requires implementation in the AyAiAy CLI codebase, a Python-based
           CLI tool for managing AI agent profiles, instruction packs, and prompt packs.
-          
+
           ### Files to Modify/Create
-          
+
           Based on the issue description, the following areas may need changes:
-          
+
           1. **Core Functionality** (`src/ayaiay/`)
              - Command implementations
              - API client updates
              - Data models
-          
+
           2. **CLI Interface** (`src/ayaiay/cli.py`)
              - New commands or command options
              - Help text updates
-          
+
           3. **Tests** (`tests/`)
              - Unit tests for new functionality
              - Integration tests
-          
+
           4. **Documentation** (`docs/`, `README.md`)
              - Update relevant documentation
              - Add examples if needed
-          
+
           ### Implementation Steps
-          
+
           1. **Understand Requirements**
              - Parse the issue description thoroughly
              - Identify specific features or fixes needed
              - Determine affected components
-          
+
           2. **Design Solution**
              - Plan the code structure
              - Consider edge cases
              - Ensure backward compatibility
-          
+
           3. **Implement Changes**
              - Write clean, well-documented code
              - Follow PEP 8 style guidelines
              - Add type hints
              - Include docstrings
-          
+
           4. **Add Tests**
              - Write unit tests for new functions
              - Add integration tests if needed
              - Ensure test coverage
-          
+
           5. **Update Documentation**
              - Update README if user-facing
              - Add docstrings to new code
              - Update relevant docs
-          
+
           ### Testing Strategy
-          
+
           ```bash
           # Run tests
           pytest tests/
-          
+
           # Check coverage
           pytest --cov=src/ayaiay
-          
+
           # Lint and format
           ruff check src tests
           ruff format src tests
           mypy src
           ```
-          
+
           ### Manual Steps Required
-          
+
           ⚠️ **This is an automated implementation plan.** The following manual steps
           are recommended:
-          
+
           1. Review this plan carefully
           2. Implement the code changes manually or use AI-assisted coding
           3. Write comprehensive tests
           4. Update documentation
           5. Test thoroughly before merging
-          
+
           ### Notes
-          
+
           - This plan was generated automatically without AI API access
           - For actual code generation, configure ANTHROPIC_API_KEY or OPENAI_API_KEY
           - Consider the project's coding standards and conventions
           - Ensure changes are backward compatible
-          
+
           ---
-          
+
           *Generated by Agent Issue Handler - {subprocess.run(['date', '-u'], capture_output=True, text=True, shell=False).stdout.strip()}*
           """)
-                  
+
                   # Also create a checklist file
                   checklist_file = impl_dir / f"issue-{issue_num}-checklist.md"
                   checklist_file.write_text(f"""# Implementation Checklist: {issue_title}
-          
+
           ## Pre-Implementation
           - [ ] Review issue requirements thoroughly
           - [ ] Understand affected components
           - [ ] Check for similar existing implementations
           - [ ] Plan the solution architecture
-          
+
           ## Implementation
           - [ ] Write core functionality
           - [ ] Add error handling
           - [ ] Include type hints
           - [ ] Add docstrings
           - [ ] Follow PEP 8 style guide
-          
+
           ## Testing
           - [ ] Write unit tests
           - [ ] Write integration tests (if needed)
           - [ ] Achieve good test coverage
           - [ ] Test edge cases
           - [ ] Manual testing
-          
+
           ## Quality Checks
           - [ ] Run `ruff check`
           - [ ] Run `ruff format`
           - [ ] Run `mypy` type checking
           - [ ] All tests pass
           - [ ] No linting errors
-          
+
           ## Documentation
           - [ ] Update README if needed
           - [ ] Add/update docstrings
           - [ ] Update relevant documentation
           - [ ] Add usage examples
-          
+
           ## Review
           - [ ] Self-review code changes
           - [ ] Check for security issues
           - [ ] Verify backward compatibility
           - [ ] Review PR description
-          
+
           ## Ready to Merge
           - [ ] All CI checks pass
           - [ ] Code reviewed by maintainers
           - [ ] Documentation complete
           - [ ] Ready for production
           """)
-                  
+
                   return True, f"Generated implementation plan and checklist in {impl_dir}"
-              
+
               except Exception as e:
                   return False, f"Error generating implementation plan: {str(e)}"
-          
-          
+
+
           def main():
               """Main entry point for the agent coder."""
               print("🤖 Agent Code Generator Starting...")
               print("=" * 60)
-              
+
               # Get issue details from environment
               issue_title = os.getenv("ISSUE_TITLE", "")
               issue_body = os.getenv("ISSUE_BODY", "")
               issue_number = os.getenv("ISSUE_NUMBER", "")
-              
+
               if not issue_title:
                   print("❌ Error: ISSUE_TITLE environment variable not set")
                   sys.exit(1)
-              
+
               print(f"📋 Issue #{issue_number}: {issue_title}")
               print("=" * 60)
-              
+
               # Gather project context
               print("\n🔍 Gathering project context...")
               context = get_project_context()
               print(f"   Found {len(context['files'])} Python files")
-              
+
               # Try different implementation strategies in order of preference
               strategies = [
                   ("Aider AI Pair Programming", use_aider_for_changes),
                   ("Direct AI API", lambda t, b: use_direct_ai_api(t, b, context)),
                   ("Rule-Based Plan Generation", generate_rule_based_implementation),
               ]
-              
+
               for strategy_name, strategy_func in strategies:
                   print(f"\n🔧 Trying strategy: {strategy_name}")
                   try:
@@ -697,7 +697,7 @@ jobs:
                           success, message = strategy_func(issue_title, issue_body)
                       else:
                           success, message = strategy_func(issue_title, issue_body)
-                      
+
                       if success:
                           print(f"✅ Success: {message}")
                           print("\n" + "=" * 60)
@@ -709,19 +709,19 @@ jobs:
                   except Exception as e:
                       print(f"⚠️  Strategy error: {str(e)}")
                       print("   Trying next strategy...")
-              
+
               print("\n❌ All strategies failed")
               return 1
-          
-          
+
+
           if __name__ == "__main__":
               sys.exit(main())
           AGENT_SCRIPT
-          
+
           # Make the script executable and run it
           chmod +x /tmp/agent_coder.py
           python /tmp/agent_coder.py
-          
+
           # Check if any changes were made
           if git status --porcelain | grep -q .; then
             echo "changes-made=true" >> $GITHUB_OUTPUT
@@ -730,7 +730,7 @@ jobs:
             echo "changes-made=false" >> $GITHUB_OUTPUT
             echo "ℹ️  No file changes detected"
           fi
-      
+
       - name: Run linting
         id: lint
         continue-on-error: true
@@ -739,7 +739,7 @@ jobs:
           ruff check src tests || echo "⚠️  Linting found issues"
           ruff format --check src tests || echo "⚠️  Formatting issues found"
           echo "lint-status=completed" >> $GITHUB_OUTPUT
-      
+
       - name: Run type checking
         id: typecheck
         continue-on-error: true
@@ -747,7 +747,7 @@ jobs:
           echo "🔍 Running type checking..."
           mypy src || echo "⚠️  Type checking found issues"
           echo "typecheck-status=completed" >> $GITHUB_OUTPUT
-      
+
       - name: Run tests
         id: test
         continue-on-error: true
@@ -755,13 +755,13 @@ jobs:
           echo "🧪 Running tests..."
           pytest --cov=src/ayaiay --cov-report=term-missing -v || echo "⚠️  Some tests failed"
           echo "test-status=completed" >> $GITHUB_OUTPUT
-      
+
       - name: Commit changes
         id: commit
         if: steps.changes.outputs.changes-made == 'true'
         run: |
           git add -A
-          
+
           if git diff --staged --quiet; then
             echo "ℹ️  No changes to commit"
             echo "has-changes=false" >> $GITHUB_OUTPUT
@@ -769,34 +769,34 @@ jobs:
             git commit -m "🤖 Automated implementation for issue #${{ needs.check-label.outputs.issue-number }}
 
           This commit was automatically generated by the AI-powered agent issue handler.
-          
+
           Issue: #${{ needs.check-label.outputs.issue-number }}
           Title: ${{ needs.check-label.outputs.issue-title }}
-          
+
           Changes:
           - Analyzed issue requirements and project context
           - Generated code implementation using AI
           - Applied automated code changes to repository
           - Created implementation plans and documentation
-          
+
           Note: AI-generated code should be reviewed carefully before merging.
-          
+
           Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
-            
+
             echo "has-changes=true" >> $GITHUB_OUTPUT
             echo "✅ Changes committed"
           fi
-      
+
       - name: Push changes
         id: push
         if: steps.commit.outputs.has-changes == 'true'
         run: |
           BRANCH_NAME="${{ steps.branch.outputs.branch-name }}"
           echo "⬆️  Pushing to $BRANCH_NAME..."
-          
+
           git push origin "$BRANCH_NAME" --force-with-lease
           echo "✅ Changes pushed"
-      
+
       - name: Create Pull Request
         id: pr
         if: steps.commit.outputs.has-changes == 'true'
@@ -806,7 +806,7 @@ jobs:
             const issueNumber = ${{ needs.check-label.outputs.issue-number }};
             const branchName = '${{ steps.branch.outputs.branch-name }}';
             const issueTitle = `${{ needs.check-label.outputs.issue-title }}`;
-            
+
             // Check if PR already exists
             const { data: existingPRs } = await github.rest.pulls.list({
               owner: context.repo.owner,
@@ -814,14 +814,14 @@ jobs:
               head: `${context.repo.owner}:${branchName}`,
               state: 'open'
             });
-            
+
             if (existingPRs.length > 0) {
               core.info(`PR already exists: #${existingPRs[0].number}`);
               core.setOutput('pr-number', existingPRs[0].number);
               core.setOutput('pr-url', existingPRs[0].html_url);
               return;
             }
-            
+
             // Create new PR
             const { data: pr } = await github.rest.pulls.create({
               owner: context.repo.owner,
@@ -867,11 +867,11 @@ jobs:
                     `---\n` +
                     `🤖 _Generated by AI-Powered Agent Issue Handler workflow_`
             });
-            
+
             core.info(`PR created: #${pr.number}`);
             core.setOutput('pr-number', pr.number);
             core.setOutput('pr-url', pr.html_url);
-            
+
             // Add labels to PR
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
@@ -888,7 +888,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-    
+
     steps:
       - name: Comment on issue - Success
         if: needs.process-issue.result == 'success'
@@ -897,7 +897,7 @@ jobs:
           script: |
             const issueNumber = ${{ needs.check-label.outputs.issue-number }};
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
+
             // Try to get PR URL from the process-issue job
             let prSection = '';
             try {
@@ -909,7 +909,7 @@ jobs:
             } catch (e) {
               // PR info not available
             }
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -934,7 +934,7 @@ jobs:
                     `- Edge cases and error handling\n\n` +
                     `_For any issues or concerns, please review the workflow run logs._`
             });
-      
+
       - name: Comment on issue - Failure
         if: needs.process-issue.result == 'failure'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -942,7 +942,7 @@ jobs:
           script: |
             const issueNumber = ${{ needs.check-label.outputs.issue-number }};
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -963,7 +963,7 @@ jobs:
                     `- Codebase conflicts or merge issues\n\n` +
                     `_Please review the error logs to understand what went wrong._`
             });
-      
+
       - name: Comment on issue - Cancelled
         if: needs.process-issue.result == 'cancelled'
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
@@ -971,7 +971,7 @@ jobs:
           script: |
             const issueNumber = ${{ needs.check-label.outputs.issue-number }};
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
+
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
