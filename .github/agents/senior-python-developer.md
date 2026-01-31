@@ -103,7 +103,7 @@ class User:
     email: str
     created_at: datetime
     is_active: bool = True
-    
+
     @classmethod
     def create(cls, email: str) -> 'User':
         """Factory method to create new user."""
@@ -128,11 +128,11 @@ from dataclasses import dataclass
 class Email:
     """Email value object with validation."""
     value: str
-    
+
     def __post_init__(self):
         if '@' not in self.value:
             raise ValueError(f"Invalid email: {self.value}")
-        
+
     def domain(self) -> str:
         """Extract domain from email."""
         return self.value.split('@')[1]
@@ -157,22 +157,22 @@ from uuid import UUID
 
 class UserRepository(ABC):
     """Repository interface for User aggregate."""
-    
+
     @abstractmethod
     def get_by_id(self, user_id: UUID) -> Optional[User]:
         """Retrieve user by ID."""
         pass
-    
+
     @abstractmethod
     def get_by_email(self, email: str) -> Optional[User]:
         """Retrieve user by email."""
         pass
-    
+
     @abstractmethod
     def save(self, user: User) -> None:
         """Persist user."""
         pass
-    
+
     @abstractmethod
     def delete(self, user: User) -> None:
         """Remove user."""
@@ -203,12 +203,12 @@ Base = declarative_base()
 class UserModel(Base):
     """SQLAlchemy model for User entity."""
     __tablename__ = 'users'
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     is_active = Column(Boolean, nullable=False, default=True)
-    
+
     def to_entity(self) -> User:
         """Convert ORM model to domain entity."""
         return User(
@@ -217,7 +217,7 @@ class UserModel(Base):
             created_at=self.created_at,
             is_active=self.is_active
         )
-    
+
     @classmethod
     def from_entity(cls, user: User) -> 'UserModel':
         """Convert domain entity to ORM model."""
@@ -237,23 +237,23 @@ from uuid import UUID
 
 class SQLAlchemyUserRepository(UserRepository):
     """SQLAlchemy implementation of UserRepository."""
-    
+
     def __init__(self, session: Session):
         self._session = session
-    
+
     def get_by_id(self, user_id: UUID) -> Optional[User]:
         model = self._session.query(UserModel).filter_by(id=user_id).first()
         return model.to_entity() if model else None
-    
+
     def get_by_email(self, email: str) -> Optional[User]:
         model = self._session.query(UserModel).filter_by(email=email).first()
         return model.to_entity() if model else None
-    
+
     def save(self, user: User) -> None:
         model = UserModel.from_entity(user)
         self._session.merge(model)
         self._session.commit()
-    
+
     def delete(self, user: User) -> None:
         model = self._session.query(UserModel).filter_by(id=user.id).first()
         if model:
@@ -289,30 +289,30 @@ from datetime import datetime
 
 class TestUserEntity:
     """Test suite for User entity."""
-    
+
     def test_create_user_with_valid_email_succeeds(self):
         """Should create user with valid email."""
         # Arrange
         email = "user@example.com"
-        
+
         # Act
         user = User.create(email)
-        
+
         # Assert
         assert user.id is not None
         assert user.email == email
         assert user.is_active is True
         assert isinstance(user.created_at, datetime)
-    
+
     def test_user_with_same_id_are_equal(self):
         """Should treat users with same ID as equal."""
         # Arrange
         user_id = uuid4()
-        user1 = User(id=user_id, email="user1@example.com", 
+        user1 = User(id=user_id, email="user1@example.com",
                      created_at=datetime.utcnow())
-        user2 = User(id=user_id, email="user2@example.com", 
+        user2 = User(id=user_id, email="user2@example.com",
                      created_at=datetime.utcnow())
-        
+
         # Act & Assert
         assert user1 == user2  # Same ID means same entity
 ```
@@ -340,19 +340,19 @@ def sample_user():
 
 class TestUserService:
     """Test suite for user service."""
-    
+
     def test_register_user_saves_to_repository(
-        self, 
-        mock_user_repository, 
+        self,
+        mock_user_repository,
         sample_user
     ):
         """Should save user to repository during registration."""
         # Arrange
         service = UserService(mock_user_repository)
-        
+
         # Act
         service.register_user(sample_user.email)
-        
+
         # Assert
         mock_user_repository.save.assert_called_once()
 ```
@@ -384,20 +384,20 @@ def get_users_by_ids(
     repository: UserRepository
 ) -> List[User]:
     """Retrieve multiple users by their IDs.
-    
+
     Args:
         user_ids: List of user UUIDs to retrieve
         repository: Repository for data access
-        
+
     Returns:
         List of User entities
-        
+
     Raises:
         ValueError: If user_ids list is empty
     """
     if not user_ids:
         raise ValueError("user_ids cannot be empty")
-    
+
     return [
         user for user_id in user_ids
         if (user := repository.get_by_id(user_id)) is not None
@@ -432,21 +432,21 @@ from dependency_injector import containers, providers
 
 class Container(containers.DeclarativeContainer):
     """Dependency injection container."""
-    
+
     config = providers.Configuration()
-    
+
     # Database
     database = providers.Singleton(
         Database,
         connection_string=config.database.connection_string
     )
-    
+
     # Repositories
     user_repository = providers.Factory(
         SQLAlchemyUserRepository,
         session=database.provided.session
     )
-    
+
     # Services
     user_service = providers.Factory(
         UserService,
@@ -463,27 +463,27 @@ logger = logging.getLogger(__name__)
 
 class UserService:
     """Service for user operations."""
-    
+
     def __init__(self, repository: UserRepository):
         self._repository = repository
         logger.info("UserService initialized")
-    
+
     def register_user(self, email: str) -> User:
         """Register new user with email."""
         logger.info(f"Attempting to register user with email: {email}")
-        
+
         try:
             existing = self._repository.get_by_email(email)
             if existing:
                 logger.warning(f"Registration failed - email exists: {email}")
                 raise DuplicateEmailException(f"Email {email} already registered")
-            
+
             user = User.create(email)
             self._repository.save(user)
-            
+
             logger.info(f"Successfully registered user: {user.id}")
             return user
-            
+
         except Exception as e:
             logger.error(f"Error registering user: {str(e)}", exc_info=True)
             raise

@@ -1,7 +1,7 @@
 {
 	"name": "Python 3 ayaiay-cli",
 	"image": "mcr.microsoft.com/devcontainers/python:3.12",
-	
+
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {

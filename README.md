@@ -9,12 +9,12 @@ CLI and SDK for the [AyAiAy.org](https://ayaiay.org) AI agents marketplace - dis
 ## Installation
 
 > ⚠️ **Note**: The package is not yet published to PyPI. The first release is pending.
-> 
+>
 > Until then, install directly from GitHub:
 > ```bash
 > pip install git+https://github.com/ayaiayorg/ayaiay-cli.git
 > ```
-> 
+>
 > See [PUBLISHING.md](PUBLISHING.md) for more installation options and publishing instructions.
 
 **Once published to PyPI** (coming soon):
