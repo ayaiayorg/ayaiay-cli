@@ -135,6 +135,36 @@ ayaiay update acme/code-reviewer
 Optionen:
 - `--path, -p`: Zielordner für ayaiay.json
 
+### `init-pack`
+Initialisiert ein neues Pack mit interaktivem Assistenten.
+
+```bash
+ayaiay init-pack
+ayaiay init-pack --path /path/to/new-pack
+```
+
+Optionen:
+- `--path, -p`: Zielordner für das Pack
+
+### `init-skill`
+Generiert ein GitHub Copilot Agent Skill Skeleton.
+
+```bash
+ayaiay init-skill
+ayaiay init-skill --name code-analyzer
+ayaiay init-skill --name file-reader --path ./skills
+ayaiay init-skill --name my-skill --output custom-name.md
+```
+
+Optionen:
+- `--name, -n`: Skill-Name (interaktiv wenn nicht angegeben)
+- `--path, -p`: Zielordner für die Skill-Datei (Standard: aktuelles Verzeichnis)
+- `--output, -o`: Ausgabe-Dateiname (Standard: `<skill-name>.md`)
+
+Skills sind spezielle Dateien, die bestimmte Fähigkeiten oder Aktionen definieren, die Agenten ausführen können. Der `init-skill` Befehl erstellt eine Skeleton-Datei im GitHub Copilot Agent Skill Format mit Abschnitten für Funktionssignatur, Parameter, Implementierungsdetails und Beispiele.
+
+Siehe: [GitHub Copilot Agent Skills Documentation](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills)
+
 ## Referenz-Format
 
 - `publisher/name`

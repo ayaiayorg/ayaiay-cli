@@ -639,6 +639,293 @@ def init_pack(path: Path | None) -> None:
         sys.exit(1)
 
 
+@main.command("init-skill")
+@click.option(
+    "--name",
+    "-n",
+    type=str,
+    help="Skill name (interactive if not provided)",
+)
+@click.option(
+    "--path",
+    "-p",
+    type=click.Path(path_type=Path),
+    help="Path where to create the skill file (default: current directory)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=str,
+    help="Output filename (default: <skill-name>.md)",
+)
+def init_skill(name: str | None, path: Path | None, output: str | None) -> None:
+    """Generate a GitHub Copilot agent skill skeleton.
+
+    Creates a new skill file following GitHub Copilot's agent skill format.
+    Skills define specific capabilities or actions that agents can perform.
+
+    See: https://docs.github.com/en/copilot/concepts/agents/about-agent-skills
+
+    Example:
+        ayaiay init-skill
+        ayaiay init-skill --name code-analyzer
+        ayaiay init-skill --name file-reader --path ./skills
+    """
+    target_path = path or Path.cwd()
+    target_path.mkdir(parents=True, exist_ok=True)
+
+    console.print(
+        Panel(
+            "[bold cyan]GitHub Copilot Agent Skill Generator[/bold cyan]\n\n"
+            "This wizard will help you create a new agent skill.\n"
+            "Skills define specific capabilities or actions that agents can perform.",
+            border_style="cyan",
+        )
+    )
+
+    # Get skill details
+    console.print("\n[bold]Skill Configuration[/bold]")
+
+    if not name:
+        name = click.prompt("Skill name (e.g., code-analyzer, file-reader)", type=str)
+
+    description = click.prompt(
+        "Description",
+        type=str,
+        default="",
+        show_default=False,
+    )
+
+    # Ask for function signature
+    console.print("\n[bold]Function Signature[/bold]")
+    console.print("[dim]Define the skill's input parameters.[/dim]")
+
+    parameters = []
+    if click.confirm("\nAdd input parameters?", default=True):
+        while True:
+            param_name = click.prompt("  Parameter name", type=str)
+            param_type = click.prompt(
+                "  Parameter type (e.g., string, number, boolean, array)",
+                type=str,
+                default="string",
+            )
+            param_desc = click.prompt(
+                "  Parameter description",
+                type=str,
+                default="",
+                show_default=False,
+            )
+            param_required = click.confirm("  Required?", default=True)
+
+            parameters.append({
+                "name": param_name,
+                "type": param_type,
+                "description": param_desc,
+                "required": param_required,
+            })
+
+            if not click.confirm("\n  Add another parameter?", default=False):
+                break
+
+    # Ask for return type
+    return_type = click.prompt(
+        "\nReturn type (e.g., string, object, array)",
+        type=str,
+        default="string",
+    )
+
+    # Generate skill content
+    skill_content = _generate_skill_content(
+        name=name,
+        description=description,
+        parameters=parameters,
+        return_type=return_type,
+    )
+
+    # Determine output filename
+    if not output:
+        # Convert skill name to kebab-case for filename
+        output = name.lower().replace(" ", "-").replace("_", "-") + ".md"
+    elif not output.endswith(".md"):
+        output = output + ".md"
+
+    skill_file_path = target_path / output
+
+    if skill_file_path.exists() and not click.confirm(
+        f"\n[yellow]File already exists: {skill_file_path}[/yellow]\nOverwrite?",
+        default=False,
+    ):
+        console.print("[dim]Aborted.[/dim]")
+        sys.exit(0)
+
+    # Write skill file
+    with open(skill_file_path, "w") as f:
+        f.write(skill_content)
+
+    print_success(f"Created skill file: {skill_file_path}")
+    console.print(
+        "\n[dim]Next steps:[/dim]\n"
+        "  1. Review and customize the generated skill\n"
+        "  2. Implement the skill logic in the 'Implementation' section\n"
+        "  3. Add the skill to your ayaiay.yaml manifest or use it directly\n"
+        "  4. Test the skill with your agent\n"
+    )
+
+
+def _generate_skill_content(
+    name: str,
+    description: str,
+    parameters: list[dict[str, Any]],
+    return_type: str,
+) -> str:
+    """Generate skill file content following GitHub Copilot's format.
+
+    Args:
+        name: Skill name
+        description: Skill description
+        parameters: List of parameter definitions
+        return_type: Return type of the skill
+
+    Returns:
+        Formatted skill content as markdown
+    """
+    # Generate parameter list for function signature
+    param_signature = (
+        ", ".join([p["name"] for p in parameters]) if parameters else ""
+    )
+
+    # Generate parameter documentation
+    params_doc = ""
+    if parameters:
+        params_doc = "\n## Parameters\n\n"
+        for param in parameters:
+            is_required = param.get("required", True)
+            required_marker = " (required)" if is_required else " (optional)"
+            params_doc += (
+                f"- **{param['name']}** (`{param['type']}`){required_marker}"
+            )
+            if param.get("description"):
+                params_doc += f": {param['description']}"
+            params_doc += "\n"
+
+    # Generate the skill content
+    skill_name_display = name.lower().replace("-", " ").replace("_", " ")
+    default_desc = f"A custom skill that performs {name} operations."
+    content = f"""# {name}
+
+{description if description else default_desc}
+
+## Overview
+
+This skill provides functionality for {skill_name_display}.
+
+## Function Signature
+
+```typescript
+function {name.replace('-', '_').replace(' ', '_')}({param_signature}): {return_type}
+```
+{params_doc}
+## Returns
+
+- **Type**: `{return_type}`
+- **Description**: The result of the {skill_name_display} operation.
+
+## Implementation
+
+<!-- Add your skill implementation here -->
+
+### Prerequisites
+
+List any prerequisites or setup requirements:
+
+- Required tools or dependencies
+- Environment configuration
+- Access permissions
+
+### Steps
+
+1. **Step 1**: Describe the first step
+2. **Step 2**: Describe the second step
+3. **Step 3**: Continue with additional steps as needed
+
+### Example Usage
+
+```typescript
+// Example 1: Basic usage"""
+
+    # Generate example call with parameters
+    if parameters:
+        example_params = []
+        for p in parameters:
+            if p["type"] == "string":
+                example_params.append(f'"{p["name"]}"')
+            else:
+                example_params.append(p["name"])
+        func_name = name.replace("-", "_").replace(" ", "_")
+        params_str = ", ".join(example_params)
+        example_call = f"{func_name}({params_str})"
+    else:
+        example_call = f"{name.replace('-', '_').replace(' ', '_')}()"
+
+    content += f"""
+const result = {example_call};
+console.log(result);
+
+// Example 2: Advanced usage
+// Add more examples as needed
+```
+
+### Error Handling
+
+Describe how the skill handles errors:
+
+- **Invalid input**: What happens when parameters are invalid
+- **Missing permissions**: How permission errors are handled
+- **Network issues**: How connectivity problems are managed
+- **Other errors**: Any other error scenarios
+
+### Best Practices
+
+- Use appropriate error handling
+- Validate all inputs
+- Follow security best practices
+- Document any assumptions
+- Add logging for debugging
+
+## Testing
+
+### Test Cases
+
+1. **Test Case 1**: Basic functionality
+   - Input: Describe input
+   - Expected Output: Describe expected result
+
+2. **Test Case 2**: Edge cases
+   - Input: Describe edge case input
+   - Expected Output: Describe expected result
+
+3. **Test Case 3**: Error scenarios
+   - Input: Describe error-triggering input
+   - Expected Output: Describe error handling
+
+## Notes
+
+Add any additional notes, limitations, or considerations:
+
+- Performance considerations
+- Known limitations
+- Future improvements
+- Related skills or dependencies
+
+## References
+
+- [GitHub Copilot Agent Skills Documentation](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills)
+- Add other relevant documentation links
+"""
+
+    return content
+
+
 @main.command()
 @click.option(
     "--path",

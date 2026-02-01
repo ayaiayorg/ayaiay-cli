@@ -467,3 +467,242 @@ class TestInitPackCommand:
             assert result.exit_code == 0
             assert Path("ayaiay.yaml").exists()
 
+
+
+class TestInitSkillCommand:
+    """Tests for the init-skill command."""
+
+    def test_init_skill_creates_file(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-skill creates a skill file."""
+        user_input = (
+            "test-skill\n"  # skill name
+            "A test skill\n"  # description
+            "y\n"  # add parameters
+            "input\n"  # parameter name
+            "string\n"  # parameter type
+            "Input data\n"  # parameter description
+            "y\n"  # required
+            "n\n"  # no more parameters
+            "string\n"  # return type
+        )
+
+        result = runner.invoke(
+            main, ["init-skill", "--path", str(tmp_path)], input=user_input
+        )
+
+        assert result.exit_code == 0
+        assert "Created skill file" in result.output
+
+        skill_path = tmp_path / "test-skill.md"
+        assert skill_path.exists()
+
+        with open(skill_path) as f:
+            content = f.read()
+            assert "# test-skill" in content
+            assert "A test skill" in content
+            assert "function test_skill(input): string" in content
+            assert "**input** (`string`) (required)" in content
+            assert "Input data" in content
+
+    def test_init_skill_with_name_option(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-skill with --name option."""
+        user_input = (
+            "Custom skill description\n"  # description
+            "y\n"  # add parameters
+            "file_path\n"  # parameter name
+            "string\n"  # parameter type
+            "Path to file\n"  # parameter description
+            "y\n"  # required
+            "n\n"  # no more parameters
+            "object\n"  # return type
+        )
+
+        result = runner.invoke(
+            main,
+            ["init-skill", "--name", "file-analyzer", "--path", str(tmp_path)],
+            input=user_input,
+        )
+
+        assert result.exit_code == 0
+        assert "Created skill file" in result.output
+
+        skill_path = tmp_path / "file-analyzer.md"
+        assert skill_path.exists()
+
+        with open(skill_path) as f:
+            content = f.read()
+            assert "# file-analyzer" in content
+            assert "Custom skill description" in content
+            assert "function file_analyzer(file_path): object" in content
+
+    def test_init_skill_with_output_option(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-skill with --output option."""
+        user_input = (
+            "Skill description\n"  # description
+            "n\n"  # no parameters
+            "string\n"  # return type
+        )
+
+        result = runner.invoke(
+            main,
+            [
+                "init-skill",
+                "--name",
+                "simple-skill",
+                "--path",
+                str(tmp_path),
+                "--output",
+                "custom-name.md",
+            ],
+            input=user_input,
+        )
+
+        assert result.exit_code == 0
+
+        skill_path = tmp_path / "custom-name.md"
+        assert skill_path.exists()
+
+    def test_init_skill_multiple_parameters(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-skill with multiple parameters."""
+        user_input = (
+            "test-skill\n"  # skill name
+            "Multi-param skill\n"  # description
+            "y\n"  # add parameters
+            "param1\n"  # parameter 1 name
+            "string\n"  # parameter 1 type
+            "First parameter\n"  # parameter 1 description
+            "y\n"  # required
+            "y\n"  # add another parameter
+            "param2\n"  # parameter 2 name
+            "number\n"  # parameter 2 type
+            "Second parameter\n"  # parameter 2 description
+            "n\n"  # not required
+            "y\n"  # add another parameter
+            "param3\n"  # parameter 3 name
+            "boolean\n"  # parameter 3 type
+            "Third parameter\n"  # parameter 3 description
+            "y\n"  # required
+            "n\n"  # no more parameters
+            "array\n"  # return type
+        )
+
+        result = runner.invoke(
+            main, ["init-skill", "--path", str(tmp_path)], input=user_input
+        )
+
+        assert result.exit_code == 0
+
+        skill_path = tmp_path / "test-skill.md"
+        assert skill_path.exists()
+
+        with open(skill_path) as f:
+            content = f.read()
+            assert "function test_skill(param1, param2, param3): array" in content
+            assert "**param1** (`string`) (required): First parameter" in content
+            assert "**param2** (`number`) (optional): Second parameter" in content
+            assert "**param3** (`boolean`) (required): Third parameter" in content
+
+    def test_init_skill_overwrites_with_confirmation(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test init-skill overwrites existing file with confirmation."""
+        skill_path = tmp_path / "existing-skill.md"
+        skill_path.write_text("# Existing content")
+
+        user_input = (
+            "New description\n"  # description
+            "n\n"  # no parameters
+            "string\n"  # return type
+            "y\n"  # confirm overwrite
+        )
+
+        result = runner.invoke(
+            main,
+            [
+                "init-skill",
+                "--name",
+                "existing-skill",
+                "--path",
+                str(tmp_path),
+            ],
+            input=user_input,
+        )
+
+        assert result.exit_code == 0
+        assert "Created skill file" in result.output
+
+        with open(skill_path) as f:
+            content = f.read()
+            assert "# existing-skill" in content
+            assert "Existing content" not in content
+
+    def test_init_skill_aborts_overwrite(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test init-skill aborts when user declines overwrite."""
+        skill_path = tmp_path / "existing-skill.md"
+        skill_path.write_text("# Existing content")
+
+        user_input = (
+            "New description\n"  # description
+            "n\n"  # no parameters
+            "string\n"  # return type
+            "n\n"  # decline overwrite
+        )
+
+        result = runner.invoke(
+            main,
+            [
+                "init-skill",
+                "--name",
+                "existing-skill",
+                "--path",
+                str(tmp_path),
+            ],
+            input=user_input,
+        )
+
+        assert result.exit_code == 0
+        assert "Aborted" in result.output
+
+        with open(skill_path) as f:
+            content = f.read()
+            assert "Existing content" in content
+
+    def test_init_skill_no_parameters(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test init-skill with no parameters."""
+        user_input = (
+            "no-param-skill\n"  # skill name
+            "Skill without parameters\n"  # description
+            "n\n"  # no parameters
+            "void\n"  # return type
+        )
+
+        result = runner.invoke(
+            main, ["init-skill", "--path", str(tmp_path)], input=user_input
+        )
+
+        assert result.exit_code == 0
+
+        skill_path = tmp_path / "no-param-skill.md"
+        assert skill_path.exists()
+
+        with open(skill_path) as f:
+            content = f.read()
+            assert "function no_param_skill(): void" in content
+            assert "## Parameters" not in content
+
+    def test_init_skill_default_path(self, runner: CliRunner) -> None:
+        """Test init-skill uses current directory by default."""
+        user_input = (
+            "default-skill\n"  # skill name
+            "Default path test\n"  # description
+            "n\n"  # no parameters
+            "string\n"  # return type
+        )
+
+        with runner.isolated_filesystem():
+            result = runner.invoke(main, ["init-skill"], input=user_input)
+
+            assert result.exit_code == 0
+            assert Path("default-skill.md").exists()
