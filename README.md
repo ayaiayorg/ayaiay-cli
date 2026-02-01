@@ -134,6 +134,24 @@ ayaiay init-pack
 ayaiay init-pack --path /path/to/new-pack
 ```
 
+### Create GitHub Copilot Agent Skills
+
+```bash
+# Generate a new skill interactively
+ayaiay init-skill
+
+# Generate with a specific name
+ayaiay init-skill --name code-analyzer
+
+# Generate in a specific directory
+ayaiay init-skill --name file-reader --path ./skills
+
+# Generate with custom output filename
+ayaiay init-skill --name my-skill --output custom-skill.md
+```
+
+Skills are special files that define specific capabilities or actions that agents can perform. The `init-skill` command creates a skeleton file following GitHub Copilot's agent skill format with sections for function signature, parameters, implementation details, and examples.
+
 ### CLI Configuration
 
 ```bash
