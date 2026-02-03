@@ -1,0 +1,6 @@
+name: us2-claude
+platforms:
+  - claude
+commands:
+  - name: claude-command
+    path: ./commands/claude-command.md

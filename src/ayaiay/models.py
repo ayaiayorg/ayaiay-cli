@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
 
 class PackType(str, Enum):
@@ -85,7 +86,14 @@ class ManifestInstruction(BaseModel):
 
     name: str = Field(..., description="Instruction name")
     description: str | None = Field(None, description="Instruction description")
-    content: str = Field(..., description="Instruction content")
+    content: str | None = Field(None, description="Instruction content")
+    path: str | None = Field(None, description="Instruction file path")
+
+    @model_validator(mode="after")
+    def validate_content_or_path(self) -> ManifestInstruction:
+        if not self.content and not self.path:
+            raise ValueError("Instruction requires content or path")
+        return self
 
 
 class ManifestPrompt(BaseModel):
@@ -93,8 +101,15 @@ class ManifestPrompt(BaseModel):
 
     name: str = Field(..., description="Prompt name")
     description: str | None = Field(None, description="Prompt description")
-    template: str = Field(..., description="Prompt template")
+    template: str | None = Field(None, description="Prompt template")
+    path: str | None = Field(None, description="Prompt file path")
     variables: list[str] = Field(default_factory=list, description="Template variables")
+
+    @model_validator(mode="after")
+    def validate_template_or_path(self) -> ManifestPrompt:
+        if not self.template and not self.path:
+            raise ValueError("Prompt requires template or path")
+        return self
 
 
 class ManifestSkill(BaseModel):
@@ -102,8 +117,15 @@ class ManifestSkill(BaseModel):
 
     name: str = Field(..., description="Skill name")
     description: str | None = Field(None, description="Skill description")
-    content: str = Field(..., description="Skill content/implementation")
+    content: str | None = Field(None, description="Skill content/implementation")
+    path: str | None = Field(None, description="Skill file path")
     parameters: list[str] = Field(default_factory=list, description="Skill parameters")
+
+    @model_validator(mode="after")
+    def validate_content_or_path(self) -> ManifestSkill:
+        if not self.content and not self.path:
+            raise ValueError("Skill requires content or path")
+        return self
 
 
 class Manifest(BaseModel):
@@ -116,6 +138,9 @@ class Manifest(BaseModel):
     license: str | None = Field(None, description="Pack license")
     repository: str | None = Field(None, description="Repository URL")
     tags: list[str] = Field(default_factory=list, description="Pack tags")
+    platforms: list[str] = Field(
+        default_factory=list, description="Target platforms for this pack"
+    )
     agents: list[ManifestAgent] = Field(
         default_factory=list, description="Agent definitions"
     )
@@ -134,6 +159,31 @@ class Manifest(BaseModel):
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata"
     )
+
+
+def normalize_artifact_path(path: str | None) -> str | None:
+    """Normalize a manifest artifact path to a relative, POSIX-style path."""
+
+    if path is None:
+        return None
+    normalized = path.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def normalize_platforms(platforms: Iterable[str] | None) -> list[str]:
+    """Normalize platform identifiers to lowercase slugs."""
+
+    if not platforms:
+        return []
+    normalized = []
+    for platform in platforms:
+        if not platform:
+            continue
+        slug = platform.strip().lower().replace(" ", "-").replace("_", "-")
+        normalized.append(slug)
+    return normalized
 
 
 class LockFilePackage(BaseModel):

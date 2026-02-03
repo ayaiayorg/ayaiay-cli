@@ -309,7 +309,9 @@ class TestInfoCommand:
 class TestInitPackCommand:
     """Tests for the init-pack command."""
 
-    def test_init_pack_creates_manifest(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_pack_creates_manifest(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
         """Test init-pack creates a valid manifest file."""
         # Simulate user input for creating a minimal pack
         user_input = (
@@ -382,7 +384,9 @@ class TestInitPackCommand:
             assert agent["model"] == "gpt-4"
             assert agent["tools"] == ["read_file", "write_file"]
 
-    def test_init_pack_with_all_artifacts(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_pack_with_all_artifacts(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
         """Test init-pack creates manifest with all artifact types."""
         user_input = (
             "full-pack\n"  # pack name
@@ -435,7 +439,9 @@ class TestInitPackCommand:
             assert len(manifest.get("prompts", [])) == 1
             assert len(manifest.get("skills", [])) == 1
 
-    def test_init_pack_fails_if_manifest_exists(self, runner: CliRunner, tmp_path: Path) -> None:
+    def test_init_pack_fails_if_manifest_exists(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
         """Test init-pack fails if manifest already exists."""
         manifest_path = tmp_path / "ayaiay.yaml"
         manifest_path.touch()
@@ -466,4 +472,3 @@ class TestInitPackCommand:
 
             assert result.exit_code == 0
             assert Path("ayaiay.yaml").exists()
-

@@ -1,0 +1,35 @@
+name: us1-valid
+platforms:
+  - claude
+agents:
+  - name: code-reviewer
+    description: Valid agent
+    instructions: ./agents/code-reviewer.md
+instructions:
+  - name: review-guidelines
+    description: Valid instructions
+    path: ./instructions/review-guidelines.md
+prompts:
+  - name: review-prompt
+    description: Valid prompt
+    path: ./prompts/review-prompt.md
+skills:
+  - name: security-review
+    description: Valid skill
+    path: ./skills/security-review/SKILL.md
+commands:
+  - name: doc-helper
+    description: Valid command
+    path: ./commands/doc-helper.md
+tools:
+  - name: custom-tool
+    description: Valid tool
+    path: ./tools/custom-tool.yaml
+workflows:
+  - name: review-workflow
+    description: Valid workflow
+    path: ./workflows/review.yml
+mcp_servers:
+  - name: github
+    description: Valid MCP server
+    path: ./mcp-servers/github.yaml

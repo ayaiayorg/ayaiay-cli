@@ -1,0 +1,4 @@
+name: us1-extra
+agents:
+  - name: defined-agent
+    instructions: ./agents/defined-agent.md

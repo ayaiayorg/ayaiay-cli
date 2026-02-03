@@ -1,0 +1,27 @@
+name: us3-demo
+platforms:
+  - claude
+agents:
+  - name: demo-agent
+    instructions: ./agents/demo-agent.md
+instructions:
+  - name: demo-instructions
+    path: ./instructions/demo-instructions.md
+prompts:
+  - name: demo-prompt
+    path: ./prompts/demo-prompt.md
+skills:
+  - name: demo-skill
+    path: ./skills/demo-skill/SKILL.md
+commands:
+  - name: demo-command
+    path: ./commands/demo-command.md
+tools:
+  - name: demo-tool
+    path: ./tools/demo-tool.yaml
+workflows:
+  - name: demo-workflow
+    path: ./workflows/demo-workflow.yml
+mcp_servers:
+  - name: demo-mcp
+    path: ./mcp-servers/demo-mcp.yaml

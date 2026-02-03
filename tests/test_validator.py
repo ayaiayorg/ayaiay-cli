@@ -101,7 +101,7 @@ class TestValidateManifest:
         result = validate_manifest(manifest_path)
 
         assert not result.is_valid
-        assert any("name" in error.lower() for error in result.errors)
+        assert any("name" in error.message.lower() for error in result.errors)
 
     def test_invalid_name_format(self, tmp_path: Path) -> None:
         """Test validation fails for invalid pack name."""
@@ -121,7 +121,7 @@ class TestValidateManifest:
         result = validate_manifest(tmp_path / "nonexistent.yaml")
 
         assert not result.is_valid
-        assert any("not found" in error.lower() for error in result.errors)
+        assert any("not found" in error.message.lower() for error in result.errors)
 
     def test_invalid_yaml_syntax(self, tmp_path: Path) -> None:
         """Test validation fails for invalid YAML."""
@@ -132,7 +132,7 @@ class TestValidateManifest:
         result = validate_manifest(manifest_path)
 
         assert not result.is_valid
-        assert any("yaml" in error.lower() for error in result.errors)
+        assert any("yaml" in error.message.lower() for error in result.errors)
 
     def test_empty_manifest(self, tmp_path: Path) -> None:
         """Test validation fails for empty manifest."""
@@ -142,7 +142,7 @@ class TestValidateManifest:
         result = validate_manifest(manifest_path)
 
         assert not result.is_valid
-        assert any("empty" in error.lower() for error in result.errors)
+        assert any("empty" in error.message.lower() for error in result.errors)
 
     def test_warning_for_empty_content(self, tmp_path: Path) -> None:
         """Test warning is issued when no agents/instructions/prompts defined."""
@@ -174,7 +174,7 @@ class TestValidateManifest:
         result = validate_manifest(manifest_path)
 
         assert not result.is_valid
-        assert any("duplicate" in error.lower() for error in result.errors)
+        assert any("duplicate" in error.message.lower() for error in result.errors)
 
     def test_invalid_dependency_version(self, tmp_path: Path) -> None:
         """Test validation fails for invalid dependency version constraint."""
@@ -191,7 +191,9 @@ class TestValidateManifest:
         result = validate_manifest(manifest_path)
 
         assert not result.is_valid
-        assert any("version constraint" in error.lower() for error in result.errors)
+        assert any(
+            "version constraint" in error.message.lower() for error in result.errors
+        )
 
     def test_valid_skill_definition(self, tmp_path: Path) -> None:
         """Test validation succeeds for valid skill definition."""
@@ -236,7 +238,7 @@ class TestValidateManifest:
         result = validate_manifest(manifest_path)
 
         assert not result.is_valid
-        assert any("content" in error.lower() for error in result.errors)
+        assert any("content" in error.message.lower() for error in result.errors)
 
     def test_duplicate_skill_names(self, tmp_path: Path) -> None:
         """Test validation fails for duplicate skill names."""
@@ -254,7 +256,7 @@ class TestValidateManifest:
         result = validate_manifest(manifest_path)
 
         assert not result.is_valid
-        assert any("duplicate" in error.lower() for error in result.errors)
+        assert any("duplicate" in error.message.lower() for error in result.errors)
 
 
 class TestLoadManifest:

@@ -1,0 +1,4 @@
+name: us1-missing
+agents:
+  - name: missing-agent
+    instructions: ./agents/missing-agent.md

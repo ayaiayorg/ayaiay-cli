@@ -1,0 +1,6 @@
+name: us2-github
+platforms:
+  - github-copilot
+commands:
+  - name: github-command
+    path: ./commands/github-command.md

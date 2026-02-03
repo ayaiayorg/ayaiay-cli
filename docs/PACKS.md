@@ -124,6 +124,11 @@ dependencies:
 ayaiay validate ayaiay.yaml
 ```
 
+Die Validierung prüft zusätzlich:
+- ob alle in `ayaiay.yaml` referenzierten Dateien existieren
+- ob Dateien in Artefakt-Ordnern ohne Manifest-Eintrag erkannt werden
+- ob Plattform-Regeln eingehalten werden (z. B. Commands nur für Claude)
+
 ## Plattform-Integration
 
 Bei der Installation eines Packs kopiert AyAiAy die Dateien automatisch in die richtigen Zielverzeichnisse basierend auf den erkannten AI-Plattformen im Projekt.
@@ -148,6 +153,10 @@ Packs können folgende Verzeichnisse enthalten, die automatisch in die Plattform
 - `skills/` → `<platform>/skills/`
 - `tools/` → `<platform>/tools/`
 - `workflows/` → `<platform>/workflows/`
+- `commands/` → `<platform>/commands/`
+- `mcp-servers/` → `<platform>/mcp-servers/`
+
+**Hinweis:** Skills folgen der Struktur `skills/<skill-name>/SKILL.md`.
 
 ### Beispiel
 

@@ -19,7 +19,7 @@ from ayaiay.config import Config
 from ayaiay.installer import Installer, PackReference
 from ayaiay.models import PackVersion
 from ayaiay.package_manager import PackageManager
-from ayaiay.validator import validate_manifest
+from ayaiay.validator import format_issue, validate_manifest
 
 console = Console()
 error_console = Console(stderr=True)
@@ -291,11 +291,11 @@ def validate(path: Path, quiet: bool) -> None:
                 console.print(Panel(info, title="Manifest Info", border_style="green"))
 
         for warning in result.warnings:
-            print_warning(warning)
+            print_warning(format_issue(warning))
     else:
         print_error(f"Manifest validation failed: {path}")
         for error in result.errors:
-            console.print(f"  [red]•[/red] {error}")
+            console.print(f"  [red]•[/red] {format_issue(error)}")
         sys.exit(1)
 
 
@@ -440,9 +440,7 @@ def init_pack(path: Path | None) -> None:
     console.print("\n[bold]Basic Information[/bold]")
 
     pack_name = click.prompt("Pack name (e.g., my-awesome-pack)", type=str)
-    description = click.prompt(
-        "Description", type=str, default="", show_default=False
-    )
+    description = click.prompt("Description", type=str, default="", show_default=False)
     author = click.prompt("Author", type=str, default="", show_default=False)
     license_type = click.prompt("License", type=str, default="MIT")
     repository = click.prompt(
@@ -631,11 +629,11 @@ def init_pack(path: Path | None) -> None:
             console.print(f"[dim]Added: {', '.join(counts)}[/dim]")
 
         for warning in result.warnings:
-            print_warning(warning)
+            print_warning(format_issue(warning))
     else:
         print_error("Created manifest has validation errors:")
         for error in result.errors:
-            console.print(f"  [red]•[/red] {error}")
+            console.print(f"  [red]•[/red] {format_issue(error)}")
         sys.exit(1)
 
 

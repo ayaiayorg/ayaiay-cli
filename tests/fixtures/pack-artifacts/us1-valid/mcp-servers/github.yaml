@@ -1,0 +1,4 @@
+name: github
+command: npx
+args:
+  - "@modelcontextprotocol/server-github"
