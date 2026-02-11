@@ -714,6 +714,10 @@ class Installer:
     ) -> list[Path]:
         """Copy pack files to the target directories for a specific platform.
 
+        Checks two source locations for each artifact directory:
+        1. Top-level pack directory (e.g., install_path/agents/) - platform-agnostic format
+        2. Platform-specific directory (e.g., install_path/.github/agents/) - native format
+
         Args:
             install_path: Installed pack path.
             project_path: Target project path.
@@ -726,9 +730,18 @@ class Installer:
         target_base = project_path / platform.target_dir
 
         for source_dir_name in PACK_SOURCE_DIRS:
+            # Check top-level pack directory first (platform-agnostic format)
             source_dir = install_path / source_dir_name
             if not source_dir.is_dir():
-                continue
+                # Fall back to platform-specific directories within the pack.
+                # First check the current platform's dir (e.g., .claude/agents/),
+                # then check other platform dirs (e.g., .github/agents/) so packs
+                # authored for one platform still work for others.
+                source_dir = self._find_platform_source_dir(
+                    install_path, source_dir_name, platform
+                )
+                if source_dir is None:
+                    continue
 
             # Determine target subdirectory from mapping
             target_subdir = platform.dir_mapping.get(source_dir_name, source_dir_name)
@@ -759,6 +772,42 @@ class Installer:
                     copied.append(target_path)
 
         return copied
+
+    def _find_platform_source_dir(
+        self,
+        install_path: Path,
+        source_dir_name: str,
+        platform: PlatformConfig,
+    ) -> Path | None:
+        """Find a source directory for artifacts within platform-specific pack dirs.
+
+        Checks for the source directory (e.g., "agents") inside platform-specific
+        directories in the pack. Prioritises the current platform's directory,
+        then falls back to any other platform directory that contains the
+        requested source dir.
+
+        Args:
+            install_path: Installed pack path.
+            source_dir_name: Name of the source directory to find (e.g., "agents").
+            platform: The target platform configuration.
+
+        Returns:
+            Path to the source directory, or None if not found.
+        """
+        # Check the current platform's dir first (e.g., .github/agents/)
+        candidate = install_path / platform.target_dir / source_dir_name
+        if candidate.is_dir():
+            return candidate
+
+        # Check other platform directories in the pack
+        for other_platform in PLATFORMS.values():
+            if other_platform.target_dir == platform.target_dir:
+                continue
+            candidate = install_path / other_platform.target_dir / source_dir_name
+            if candidate.is_dir():
+                return candidate
+
+        return None
 
     def _copy_legacy_project_files(
         self,

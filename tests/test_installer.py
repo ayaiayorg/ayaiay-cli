@@ -675,3 +675,258 @@ class TestPlatformFileCopying:
         new_agent = project_path / ".github" / "agents" / "new-agent.md"
         assert new_agent.exists()
         assert new_agent.read_text() == "# New Agent v2"
+
+
+class TestPlatformSpecificPackStructure:
+    """Tests for packs that use platform-specific directory structures.
+
+    Real-world packs from GitHub repos often store files under
+    platform-specific directories (e.g., .github/agents/) rather than
+    top-level directories (agents/).
+    """
+
+    def test_copy_agents_from_github_dir_in_pack(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test copying agents from .github/agents/ inside the pack."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            # Pack uses platform-specific structure: .github/agents/
+            agents_path = install_path / ".github" / "agents"
+            agents_path.mkdir(parents=True)
+            (agents_path / "my-agent.md").write_text("# Agent from .github")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        copied_agent = project_path / ".github" / "agents" / "my-agent.md"
+        assert copied_agent.exists()
+        assert copied_agent.read_text() == "# Agent from .github"
+
+    def test_copy_instructions_from_github_dir_in_pack(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test copying instructions from .github/instructions/ inside the pack."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.INSTRUCTION,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            # Pack uses platform-specific structure: .github/instructions/
+            instructions_path = install_path / ".github" / "instructions"
+            instructions_path.mkdir(parents=True)
+            (instructions_path / "copilot-instructions.md").write_text("# Instructions")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        # Instructions mapping is "" so they go directly to .github/
+        copied = project_path / ".github" / "copilot-instructions.md"
+        assert copied.exists()
+        assert copied.read_text() == "# Instructions"
+
+    def test_top_level_dir_takes_priority_over_platform_dir(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that top-level agents/ is preferred over .github/agents/."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            # Pack has BOTH top-level and platform-specific agents
+            top_agents = install_path / "agents"
+            top_agents.mkdir()
+            (top_agents / "my-agent.md").write_text("# Top-level agent")
+
+            gh_agents = install_path / ".github" / "agents"
+            gh_agents.mkdir(parents=True)
+            (gh_agents / "my-agent.md").write_text("# Platform agent")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        copied_agent = project_path / ".github" / "agents" / "my-agent.md"
+        assert copied_agent.exists()
+        # Top-level should take priority
+        assert copied_agent.read_text() == "# Top-level agent"
+
+    def test_github_pack_files_copied_to_multiple_platforms(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that .github/agents/ files are also copied to other detected platforms."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / ".claude").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            # Pack only has .github/agents/ (no top-level agents/)
+            gh_agents = install_path / ".github" / "agents"
+            gh_agents.mkdir(parents=True)
+            (gh_agents / "my-agent.md").write_text("# Agent content")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        # Should be copied to .github/agents/ (from pack's .github/agents/)
+        assert (project_path / ".github" / "agents" / "my-agent.md").exists()
+        # Should also be copied to .claude/agents/ (using .github/agents/ as fallback)
+        assert (project_path / ".claude" / "agents" / "my-agent.md").exists()
+
+    def test_uninstall_removes_files_from_platform_specific_pack(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test uninstall works for packs that used platform-specific dirs."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="my-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/my-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            gh_agents = install_path / ".github" / "agents"
+            gh_agents.mkdir(parents=True)
+            (gh_agents / "my-agent.md").write_text("# Agent content")
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/my-pack@1.0.0")
+
+        assert result.success is True
+        copied_agent = project_path / ".github" / "agents" / "my-agent.md"
+        assert copied_agent.exists()
+
+        # Uninstall should clean up
+        uninstall_result = installer.uninstall("test/my-pack")
+        assert uninstall_result.success is True
+        assert not copied_agent.exists()
