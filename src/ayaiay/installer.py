@@ -332,8 +332,7 @@ class Installer:
         try:
             self._generate_skills_from_manifest(install_path)
         except Exception:
-            # Log warning but don't fail installation
-            # Skills from manifest are optional
+            # Skills from manifest are optional, silently ignore errors
             pass
 
         # Copy pack files into project workspace when applicable
@@ -905,8 +904,7 @@ class Installer:
 
         # Generate a file for each skill
         for skill in manifest.skills:
-            # Convert skill name to filename (kebab-case)
-            filename = skill.name.lower().replace(" ", "-").replace("_", "-") + ".md"
+            filename = normalize_skill_filename(skill.name)
             skill_file = skills_dir / filename
 
             # Only create if it doesn't already exist
@@ -964,6 +962,24 @@ class Installer:
                 parent.rmdir()
 
 
+def normalize_skill_filename(skill_name: str) -> str:
+    """Convert a skill name to a normalized kebab-case filename.
+
+    Args:
+        skill_name: The skill name to normalize.
+
+    Returns:
+        Normalized filename with .md extension.
+
+    Example:
+        >>> normalize_skill_filename("Code Analyzer")
+        'code-analyzer.md'
+        >>> normalize_skill_filename("file_reader")
+        'file-reader.md'
+    """
+    return skill_name.lower().replace(" ", "-").replace("_", "-") + ".md"
+
+
 def generate_skill_file_content(skill: ManifestSkill) -> str:
     """Generate skill file content from a ManifestSkill definition.
 
@@ -988,7 +1004,7 @@ def generate_skill_file_content(skill: ManifestSkill) -> str:
     # Build the skill content
     description = (
         skill.description
-        or f"A custom skill that performs {skill_name_display} operations."
+        or f"A custom skill that performs {skill_name_display}"
     )
 
     content = f"""# {skill.name}

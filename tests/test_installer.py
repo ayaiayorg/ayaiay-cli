@@ -8,7 +8,11 @@ import httpx
 import pytest
 
 from ayaiay.config import Config
-from ayaiay.installer import Installer, generate_skill_file_content
+from ayaiay.installer import (
+    Installer,
+    generate_skill_file_content,
+    normalize_skill_filename,
+)
 from ayaiay.models import ManifestSkill, Pack, PackType, PackVersion
 
 
@@ -29,6 +33,13 @@ def installer(config: Config) -> Installer:
 
 class TestSkillGeneration:
     """Tests for skill file generation."""
+
+    def test_normalize_skill_filename(self) -> None:
+        """Test skill name normalization to filename."""
+        assert normalize_skill_filename("code-analyzer") == "code-analyzer.md"
+        assert normalize_skill_filename("Code Analyzer") == "code-analyzer.md"
+        assert normalize_skill_filename("file_reader") == "file-reader.md"
+        assert normalize_skill_filename("My_Skill Name") == "my-skill-name.md"
 
     def test_generate_skill_file_content(self) -> None:
         """Test generating skill file content from ManifestSkill."""

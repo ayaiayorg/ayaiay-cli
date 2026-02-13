@@ -80,7 +80,7 @@ Wenn ein Pack installiert wird, werden die im Manifest definierten Skills automa
 
 **Beispiel eines generierten Skill-Files:**
 
-Bei Installation eines Packs mit dem obigen `code-analyzer` Skill wird automatisch eine Datei `skills/code-analyzer.md` mit folgendem Inhalt erstellt:
+Bei der Installation eines Packs mit dem obigen `code-analyzer` Skill wird automatisch eine Datei `skills/code-analyzer.md` mit folgendem Inhalt erstellt:
 
 ```markdown
 # code-analyzer
