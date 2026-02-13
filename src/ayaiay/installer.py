@@ -15,7 +15,7 @@ import httpx
 
 from ayaiay.client import AyAiAyClient, NotFoundError
 from ayaiay.config import Config
-from ayaiay.models import Manifest, ManifestSkill, Pack, PackVersion
+from ayaiay.models import ManifestSkill, Pack, PackVersion
 from ayaiay.validator import load_manifest
 
 # Constants
@@ -331,7 +331,7 @@ class Installer:
         # Generate skill files from manifest if they don't already exist
         try:
             self._generate_skills_from_manifest(install_path)
-        except Exception as e:
+        except Exception:
             # Log warning but don't fail installation
             # Skills from manifest are optional
             pass
@@ -724,8 +724,10 @@ class Installer:
         """Copy pack files to the target directories for a specific platform.
 
         Checks two source locations for each artifact directory:
-        1. Top-level pack directory (e.g., install_path/agents/) - platform-agnostic format
-        2. Platform-specific directory (e.g., install_path/.github/agents/) - native format
+        1. Top-level pack directory (e.g., install_path/agents/)
+           - platform-agnostic format
+        2. Platform-specific directory (e.g., install_path/.github/agents/)
+           - native format
 
         Args:
             install_path: Installed pack path.
@@ -973,7 +975,7 @@ def generate_skill_file_content(skill: ManifestSkill) -> str:
     """
     # Convert skill name for display
     skill_name_display = skill.name.lower().replace("-", " ").replace("_", " ")
-    
+
     # Generate parameters documentation if any
     params_doc = ""
     param_signature = ""
@@ -982,10 +984,13 @@ def generate_skill_file_content(skill: ManifestSkill) -> str:
         params_doc = "\n## Parameters\n\n"
         for param in skill.parameters:
             params_doc += f"- **{param}** (required)\n"
-    
+
     # Build the skill content
-    description = skill.description or f"A custom skill that performs {skill_name_display} operations."
-    
+    description = (
+        skill.description
+        or f"A custom skill that performs {skill_name_display} operations."
+    )
+
     content = f"""# {skill.name}
 
 {description}
@@ -1024,5 +1029,5 @@ console.log(result);
 - Follow security best practices
 - Document any assumptions
 """
-    
+
     return content
