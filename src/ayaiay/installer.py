@@ -15,7 +15,8 @@ import httpx
 
 from ayaiay.client import AyAiAyClient, NotFoundError
 from ayaiay.config import Config
-from ayaiay.models import Pack, PackVersion
+from ayaiay.models import ManifestSkill, Pack, PackVersion
+from ayaiay.validator import load_manifest
 
 # Constants
 METADATA_FILENAME: Final[str] = ".ayaiay-metadata.json"
@@ -326,6 +327,13 @@ class Installer:
                 install_path=None,
                 message=f"Failed to pull from registry: {e}",
             )
+
+        # Generate skill files from manifest if they don't already exist
+        try:
+            self._generate_skills_from_manifest(install_path)
+        except Exception:
+            # Skills from manifest are optional, silently ignore errors
+            pass
 
         # Copy pack files into project workspace when applicable
         try:
@@ -715,8 +723,10 @@ class Installer:
         """Copy pack files to the target directories for a specific platform.
 
         Checks two source locations for each artifact directory:
-        1. Top-level pack directory (e.g., install_path/agents/) - platform-agnostic format
-        2. Platform-specific directory (e.g., install_path/.github/agents/) - native format
+        1. Top-level pack directory (e.g., install_path/agents/)
+           - platform-agnostic format
+        2. Platform-specific directory (e.g., install_path/.github/agents/)
+           - native format
 
         Args:
             install_path: Installed pack path.
@@ -855,6 +865,54 @@ class Installer:
 
         return copied
 
+    def _generate_skills_from_manifest(self, install_path: Path) -> None:
+        """Generate skill files from manifest skill definitions.
+
+        Reads the ayaiay.yaml manifest from the installed pack and generates
+        individual skill .md files in the skills/ directory for each skill
+        defined in the manifest. Only generates files if they don't already exist.
+
+        Args:
+            install_path: Path to the installed pack.
+        """
+        # Look for manifest file in the install path
+        manifest_path = None
+        for filename in PROJECT_MANIFEST_FILENAMES:
+            candidate = install_path / filename
+            if candidate.exists():
+                manifest_path = candidate
+                break
+
+        if not manifest_path:
+            # No manifest found, nothing to do
+            return
+
+        # Load the manifest
+        try:
+            manifest = load_manifest(manifest_path)
+        except Exception:
+            # If we can't load the manifest, skip skill generation
+            return
+
+        # Check if there are any skills defined
+        if not manifest.skills:
+            return
+
+        # Create skills directory in the install path
+        skills_dir = install_path / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate a file for each skill
+        for skill in manifest.skills:
+            filename = normalize_skill_filename(skill.name)
+            skill_file = skills_dir / filename
+
+            # Only create if it doesn't already exist
+            if not skill_file.exists():
+                content = generate_skill_file_content(skill)
+                with open(skill_file, "w", encoding="utf-8") as f:
+                    f.write(content)
+
     def _remove_project_files(self, install_path: Path) -> None:
         """Remove project files that were copied during installation.
 
@@ -902,3 +960,90 @@ class Installer:
                 and not any(parent.iterdir())
             ):
                 parent.rmdir()
+
+
+def normalize_skill_filename(skill_name: str) -> str:
+    """Convert a skill name to a normalized kebab-case filename.
+
+    Args:
+        skill_name: The skill name to normalize.
+
+    Returns:
+        Normalized filename with .md extension.
+
+    Example:
+        >>> normalize_skill_filename("Code Analyzer")
+        'code-analyzer.md'
+        >>> normalize_skill_filename("file_reader")
+        'file-reader.md'
+    """
+    return skill_name.lower().replace(" ", "-").replace("_", "-") + ".md"
+
+
+def generate_skill_file_content(skill: ManifestSkill) -> str:
+    """Generate skill file content from a ManifestSkill definition.
+
+    Args:
+        skill: ManifestSkill object from manifest.
+
+    Returns:
+        Formatted skill content as markdown.
+    """
+    # Convert skill name for display
+    skill_name_display = skill.name.lower().replace("-", " ").replace("_", " ")
+
+    # Generate parameters documentation if any
+    params_doc = ""
+    param_signature = ""
+    if skill.parameters:
+        param_signature = ", ".join(skill.parameters)
+        params_doc = "\n## Parameters\n\n"
+        for param in skill.parameters:
+            params_doc += f"- **{param}** (required)\n"
+
+    # Build the skill content
+    description = (
+        skill.description
+        or f"A custom skill that performs a {skill_name_display}"
+    )
+
+    content = f"""# {skill.name}
+
+{description}
+
+## Overview
+
+This skill provides functionality for {skill_name_display}.
+
+## Function Signature
+
+```typescript
+function {skill.name.replace('-', '_').replace(' ', '_')}({param_signature}): any
+```
+{params_doc}
+## Returns
+
+- **Type**: `any`
+- **Description**: The result of the {skill_name_display} operation.
+
+## Implementation
+
+{skill.content}
+
+## Example Usage
+
+```typescript
+// Example usage
+const result = {skill.name.replace('-', '_').replace(' ', '_')}({param_signature});
+console.log(result);
+```
+
+## Best Practices
+
+- Use appropriate error handling
+- Validate all inputs
+- Follow security best practices
+- Document any assumptions
+"""
+
+    return content

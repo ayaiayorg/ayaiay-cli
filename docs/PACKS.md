@@ -68,6 +68,47 @@ Ein Pack wird durch eine ayaiay.yaml beschrieben. Felder (Schema v1.0):
 - `content`: Skill-Implementierung/Inhalt
 - `parameters`: Liste von Parametern
 
+#### Skill-Registrierung
+
+Wenn ein Pack installiert wird, werden die im Manifest definierten Skills automatisch als `.md`-Dateien im `skills/`-Verzeichnis generiert. Diese Dateien folgen dem GitHub Copilot Agent Skill Format und werden dann in die konfigurierten Plattform-Verzeichnisse kopiert (z.B. `.github/skills/`, `.claude/skills/`).
+
+**Vorteile der Manifest-basierten Skill-Verwaltung:**
+- **Zentrale Definition**: Skills werden in der `ayaiay.yaml` definiert
+- **Automatische Generierung**: Skill-Dateien werden beim Installieren automatisch erstellt
+- **Plattformübergreifend**: Skills werden für alle erkannten Plattformen bereitgestellt
+- **Versionierbar**: Skills sind Teil des Pack-Manifests und damit versioniert
+
+**Beispiel eines generierten Skill-Files:**
+
+Bei der Installation eines Packs mit dem obigen `code-analyzer` Skill wird automatisch eine Datei `skills/code-analyzer.md` mit folgendem Inhalt erstellt:
+
+```markdown
+# code-analyzer
+
+Analyzes code structure
+
+## Overview
+
+This skill provides functionality for code analyzer.
+
+## Function Signature
+
+```typescript
+function code_analyzer(file_path, language): any
+```
+
+## Parameters
+
+- **file_path** (required)
+- **language** (required)
+
+## Implementation
+
+Analyze code for patterns and complexity.
+
+...
+```
+
 ## Beispiel-Manifest
 
 ```yaml
