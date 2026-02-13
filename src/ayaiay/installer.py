@@ -1004,7 +1004,7 @@ def generate_skill_file_content(skill: ManifestSkill) -> str:
     # Build the skill content
     description = (
         skill.description
-        or f"A custom skill that performs {skill_name_display}"
+        or f"A custom skill that performs a {skill_name_display}"
     )
 
     content = f"""# {skill.name}

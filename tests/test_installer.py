@@ -1048,25 +1048,25 @@ skills:
             result = installer.install("test/skills-pack@1.0.0")
 
         assert result.success is True
-        
+
         # Check that skill files were generated in the pack install directory
         install_path = config.install_dir / "test" / "skills-pack"
         skill1 = install_path / "skills" / "code-analyzer.md"
         skill2 = install_path / "skills" / "file-reader.md"
-        
+
         assert skill1.exists(), "code-analyzer.md should be generated"
         assert skill2.exists(), "file-reader.md should be generated"
-        
+
         # Check content of one skill file
         skill1_content = skill1.read_text()
         assert "# code-analyzer" in skill1_content
         assert "Analyzes code structure" in skill1_content
         assert "file_path" in skill1_content
         assert "language" in skill1_content
-        
+
         # Check that skills were copied to project
         project_skill1 = project_path / ".github" / "skills" / "code-analyzer.md"
         project_skill2 = project_path / ".github" / "skills" / "file-reader.md"
-        
+
         assert project_skill1.exists(), "Skills should be copied to project .github/skills/"
         assert project_skill2.exists(), "Skills should be copied to project .github/skills/"
