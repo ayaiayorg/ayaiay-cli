@@ -332,6 +332,18 @@ dependencies:
   base-pack: "^1.0.0"
 ```
 
+### Skill Management from Manifest
+
+Skills defined in the `ayaiay.yaml` manifest are automatically converted into individual `.md` skill files during pack installation. These files follow the GitHub Copilot agent skill format and are deployed to the appropriate platform directories.
+
+**How it works:**
+1. Define skills in your `ayaiay.yaml` manifest with `name`, `description`, `content`, and `parameters`
+2. When the pack is installed, AyAiAy automatically generates skill files in the `skills/` directory
+3. These skill files are then copied to platform-specific directories (e.g., `.github/skills/`, `.claude/skills/`)
+4. AI agents can discover and use these skills automatically
+
+This approach ensures that skills are properly registered, version-controlled, and managed across different AI platforms.
+
 ## Development
 
 ### Setup
