@@ -8,8 +8,8 @@ import httpx
 import pytest
 
 from ayaiay.config import Config
-from ayaiay.installer import Installer
-from ayaiay.models import Pack, PackType, PackVersion
+from ayaiay.installer import Installer, generate_skill_file_content
+from ayaiay.models import ManifestSkill, Pack, PackType, PackVersion
 
 
 @pytest.fixture
@@ -25,6 +25,51 @@ def config() -> Config:
 def installer(config: Config) -> Installer:
     """Create a test installer."""
     return Installer(config=config)
+
+
+class TestSkillGeneration:
+    """Tests for skill file generation."""
+
+    def test_generate_skill_file_content(self) -> None:
+        """Test generating skill file content from ManifestSkill."""
+        skill = ManifestSkill(
+            name="code-analyzer",
+            description="Analyzes code structure and patterns",
+            content="Analyze the provided code and identify design patterns used.",
+            parameters=["file_path", "language"],
+        )
+
+        content = generate_skill_file_content(skill)
+
+        # Check that all key sections are present
+        assert "# code-analyzer" in content
+        assert "Analyzes code structure and patterns" in content
+        assert "## Overview" in content
+        assert "## Function Signature" in content
+        assert "## Parameters" in content
+        assert "file_path" in content
+        assert "language" in content
+        assert "## Implementation" in content
+        assert "Analyze the provided code and identify design patterns used." in content
+        assert "## Example Usage" in content
+
+    def test_generate_skill_file_content_no_parameters(self) -> None:
+        """Test generating skill file content without parameters."""
+        skill = ManifestSkill(
+            name="simple-skill",
+            description="A simple skill",
+            content="Does something simple.",
+            parameters=[],
+        )
+
+        content = generate_skill_file_content(skill)
+
+        # Check that the file is generated properly without parameters
+        assert "# simple-skill" in content
+        assert "A simple skill" in content
+        assert "Does something simple." in content
+        # Parameters section should be minimal or absent
+        assert "## Returns" in content
 
 
 class TestInstaller:
@@ -930,3 +975,87 @@ class TestPlatformSpecificPackStructure:
         uninstall_result = installer.uninstall("test/my-pack")
         assert uninstall_result.success is True
         assert not copied_agent.exists()
+
+    def test_generate_skills_from_manifest(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that skills defined in manifest are generated as files."""
+        config = Config(
+            api_base_url="https://api.test.ayaiay.org",
+            install_dir=tmp_path / "packs",
+            cache_dir=tmp_path / "cache",
+        )
+        installer = Installer(config=config)
+
+        pack = Pack(
+            id="pack-123",
+            name="skills-pack",
+            publisher="test",
+            pack_type=PackType.AGENT,
+            repository_url="https://github.com/test/skills-pack",
+        )
+        version = PackVersion(version="1.0.0")
+
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+        (project_path / ".github").mkdir()
+        (project_path / "ayaiay.json").write_text("{}")
+        monkeypatch.chdir(project_path)
+
+        def fake_pull(_pack: Pack, _version: PackVersion, install_path: Path) -> None:
+            install_path.mkdir(parents=True, exist_ok=True)
+            # Create a manifest with skills
+            manifest_content = """version: "1.0"
+name: skills-pack
+description: A pack with skills
+author: Test Author
+
+skills:
+  - name: code-analyzer
+    description: Analyzes code structure
+    content: |
+      Analyze the provided code and identify design patterns.
+    parameters:
+      - file_path
+      - language
+  - name: file-reader
+    description: Reads file contents
+    content: |
+      Read and return the contents of the specified file.
+    parameters:
+      - path
+"""
+            (install_path / "ayaiay.yaml").write_text(manifest_content)
+
+        with (
+            patch.object(installer.client, "get_pack", return_value=pack),
+            patch.object(installer.client, "get_pack_version", return_value=version),
+            patch.object(installer, "_pull_from_registry", side_effect=fake_pull),
+        ):
+            result = installer.install("test/skills-pack@1.0.0")
+
+        assert result.success is True
+        
+        # Check that skill files were generated in the pack install directory
+        install_path = config.install_dir / "test" / "skills-pack"
+        skill1 = install_path / "skills" / "code-analyzer.md"
+        skill2 = install_path / "skills" / "file-reader.md"
+        
+        assert skill1.exists(), "code-analyzer.md should be generated"
+        assert skill2.exists(), "file-reader.md should be generated"
+        
+        # Check content of one skill file
+        skill1_content = skill1.read_text()
+        assert "# code-analyzer" in skill1_content
+        assert "Analyzes code structure" in skill1_content
+        assert "file_path" in skill1_content
+        assert "language" in skill1_content
+        
+        # Check that skills were copied to project
+        project_skill1 = project_path / ".github" / "skills" / "code-analyzer.md"
+        project_skill2 = project_path / ".github" / "skills" / "file-reader.md"
+        
+        assert project_skill1.exists(), "Skills should be copied to project .github/skills/"
+        assert project_skill2.exists(), "Skills should be copied to project .github/skills/"
