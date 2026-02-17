@@ -266,81 +266,90 @@ The command creates an `ayaiay.yaml` manifest file that you can further customiz
 
 ### Manual Pack Creation
 
-You can also manually create an `ayaiay.yaml` manifest in your repository:
+You can also manually create an `ayaiay.yaml` manifest in your repository. Use the spec-nested format (`apiVersion/kind/metadata/spec`), which is the canonical format accepted by `ayaiay validate`:
 
 ```yaml
-version: "1.0"
-name: my-awesome-pack
-description: An awesome AI pack for code review
-author: Your Name
-license: MIT
-repository: https://github.com/you/my-awesome-pack
-tags:
-  - code-review
-  - python
+apiVersion: v1
+kind: Pack
+metadata:
+  name: my-awesome-pack
+  version: 1.0.0
+  description: An awesome AI pack for code review
+  author: Your Name
+  license: MIT
+  repository: https://github.com/you/my-awesome-pack
+  tags:
+    - code-review
+    - python
 
-agents:
-  - name: code-reviewer
-    description: Reviews code for quality and best practices
-    system_prompt: |
-      You are an expert code reviewer. Analyze code for:
-      - Best practices
-      - Performance issues
-      - Security vulnerabilities
-    model: gpt-4
-    tools:
-      - read_file
-      - write_file
+spec:
+  agents:
+    - name: code-reviewer
+      description: Reviews code for quality and best practices
+      system_prompt: |
+        You are an expert code reviewer. Analyze code for:
+        - Best practices
+        - Performance issues
+        - Security vulnerabilities
+      model: claude-opus-4-5
+      tools:
+        - read_file
+        - write_file
 
-instructions:
-  - name: coding-standards
-    description: Coding standards to follow
-    content: |
-      Follow PEP 8 for Python code.
-      Use meaningful variable names.
-      Write docstrings for all functions.
+  instructions:
+    - name: coding-standards
+      description: Coding standards to follow
+      path: ./instructions/coding-standards.md
 
-prompts:
-  - name: review-request
-    description: Template for requesting code review
-    template: |
-      Please review the following {language} code:
+  prompts:
+    - name: review-request
+      description: Template for requesting code review
+      path: ./prompts/review-request.md
+      variables:
+        - language
+        - code
+        - focus_areas
 
-      ```{language}
-      {code}
-      ```
+  skillCategories:
+    - slug: code-quality
+      label: Code Quality
+      shortLabel: Quality
+      description: Skills for improving and maintaining code quality.
+    - slug: security
+      label: Security
+      description: Skills for vulnerability assessment and secure coding.
 
-      Focus on: {focus_areas}
-    variables:
-      - language
-      - code
-      - focus_areas
+  skills:
+    - name: code-analyzer
+      description: Analyzes code structure and patterns
+      category: code-quality
+      path: ./skills/code-analyzer/SKILL.md
+      tags:
+        - refactoring
+        - complexity
+    - name: security-review
+      description: Identifies security vulnerabilities and suggests fixes
+      category: security
+      path: ./skills/security-review/SKILL.md
+      tags:
+        - security
+        - owasp
 
-skills:
-  - name: code-analyzer
-    description: Analyzes code structure and patterns
-    content: |
-      Analyze the provided code and identify:
-      - Design patterns used
-      - Code complexity metrics
-      - Potential refactoring opportunities
-    parameters:
-      - file_path
-      - language
-
-dependencies:
-  base-pack: "^1.0.0"
+  dependencies:
+    base-pack: "^1.0.0"
 ```
 
 ### Skill Management from Manifest
 
-Skills defined in the `ayaiay.yaml` manifest are automatically converted into individual `.md` skill files during pack installation. These files follow the GitHub Copilot agent skill format and are deployed to the appropriate platform directories.
+Skills defined in the `ayaiay.yaml` manifest are automatically registered when the pack is installed. Each skill references a `.md` file via the `path` field — these files follow the GitHub Copilot agent skill format and are deployed to the appropriate platform directories.
 
 **How it works:**
-1. Define skills in your `ayaiay.yaml` manifest with `name`, `description`, `content`, and `parameters`
-2. When the pack is installed, AyAiAy automatically generates skill files in the `skills/` directory
-3. These skill files are then copied to platform-specific directories (e.g., `.github/skills/`, `.claude/skills/`)
+1. Define skills in your `ayaiay.yaml` manifest with `name`, `description`, `path`, `category`, and `tags`
+2. Create a corresponding skill file at each `path` (e.g. `./skills/code-analyzer/SKILL.md`)
+3. When the pack is installed, AyAiAy copies skill files to platform-specific directories (e.g., `.github/skills/`, `.claude/skills/`)
 4. AI agents can discover and use these skills automatically
+
+Use `skillCategories` to group related skills into categories — these are displayed in the category sidebar on the pack detail page. Each skill's `category` field must match a `slug` defined in `skillCategories`.
 
 This approach ensures that skills are properly registered, version-controlled, and managed across different AI platforms.
 

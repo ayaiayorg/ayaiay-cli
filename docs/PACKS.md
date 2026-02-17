@@ -1,86 +1,215 @@
-# Packs und Manifest (ayaiay.yaml)
+# Packs and the Manifest (ayaiay.yaml)
 
-## Pack-Typen
+## Pack Types
 
-Ein Pack ist eine Sammlung von:
+A pack is a collection of one or more of the following artifact types:
 
-- **Agents** (`agent`)
-- **Instructions** (`instruction`)
-- **Prompts** (`prompt`)
-- **Skills** (`skill`)
+- **Agents** (`agent`) — AI agents with system prompts and tool access
+- **Instructions** (`instruction`) — Reusable instruction sets that guide agent behaviour
+- **Prompts** (`prompt`) — Template prompts with variables for common tasks
+- **Skills** (`skill`) — Specific capabilities agents can invoke
 
-## Pack-Referenzen
+## Pack References
 
-Format:
+Packs are identified by `publisher/name`, optionally with a version specifier:
 
 - `publisher/name`
 - `publisher/name@version`
 - `publisher/name@latest`
 
-Beispiele:
+Examples:
 
 - `acme/code-reviewer`
 - `acme/code-reviewer@1.0.0`
 
-## Manifest-Datei
+## Manifest File
 
-Ein Pack wird durch eine ayaiay.yaml beschrieben. Felder (Schema v1.0):
+Every pack is described by an `ayaiay.yaml` manifest. The canonical format is
+**spec-nested** (`apiVersion/kind/metadata/spec`):
 
-- `version`: Manifest-Schema (Standard: `1.0`)
-- `name`: Pack-Name
-- `description`: Beschreibung
-- `author`: Autor
-- `license`: Lizenz
-- `repository`: Repository-URL
-- `tags`: Liste von Tags
-- `agents`: Liste von Agenten-Definitionen
-- `instructions`: Liste von Instruktions-Definitionen
-- `prompts`: Liste von Prompt-Definitionen
-- `skills`: Liste von Skill-Definitionen
-- `dependencies`: Abhängigkeiten (`name: version`)
-- `metadata`: Freie Metadaten
+```yaml
+apiVersion: v1
+kind: Pack
+metadata:
+  name: <pack-name>            # required — lowercase alphanumeric + hyphens
+  version: 1.0.0
+  description: <description>
+  author: <author>
+  license: MIT
+  repository: https://github.com/you/my-pack
+  tags:
+    - tag-one
+    - tag-two
+spec:
+  agents: [...]
+  instructions: [...]
+  prompts: [...]
+  skillCategories: [...]
+  skills: [...]
+  dependencies:
+    <pack-name>: "<version-constraint>"
+```
 
-### Agent-Definition
+> **Note**: `ayaiay validate` also accepts the legacy flat format
+> (`name/agents/skills` at root level) for backwards compatibility.
 
-- `name`: Agent-Name
-- `description`: Kurzbeschreibung
-- `system_prompt`: System-Prompt
-- `model`: bevorzugtes Modell
-- `tools`: benötigte Tools
+### Field Reference
 
-### Instruction-Definition
+#### `metadata`
 
-- `name`
-- `description`
-- `content`
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Pack name — `^[a-z0-9][a-z0-9-]*[a-z0-9]$` |
+| `version` | string | no | Semantic version (default: `1.0`) |
+| `description` | string | no | Short description (max 500 chars) |
+| `author` | string | no | Author name |
+| `license` | string | no | SPDX license identifier |
+| `repository` | string | no | Repository URL |
+| `tags` | string[] | no | Discovery tags (max 10, `^[a-z0-9-]+$`) |
 
-### Prompt-Definition
+#### `spec.agents`
 
-- `name`
-- `description`
-- `template`
-- `variables`
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Agent name |
+| `description` | string | no | Short description |
+| `system_prompt` | string | no | System prompt |
+| `model` | string | no | Preferred model |
+| `tools` | string[] | no | Required tools |
 
-### Skill-Definition
+#### `spec.instructions`
 
-- `name`: Skill-Name
-- `description`: Kurzbeschreibung
-- `content`: Skill-Implementierung/Inhalt
-- `parameters`: Liste von Parametern
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Instruction name |
+| `description` | string | no | Short description |
+| `content` | string | no* | Inline content |
 
-#### Skill-Registrierung
+*`content` is required in flat format; use `path` to reference a file in spec-nested format.
 
-Wenn ein Pack installiert wird, werden die im Manifest definierten Skills automatisch als `.md`-Dateien im `skills/`-Verzeichnis generiert. Diese Dateien folgen dem GitHub Copilot Agent Skill Format und werden dann in die konfigurierten Plattform-Verzeichnisse kopiert (z.B. `.github/skills/`, `.claude/skills/`).
+#### `spec.prompts`
 
-**Vorteile der Manifest-basierten Skill-Verwaltung:**
-- **Zentrale Definition**: Skills werden in der `ayaiay.yaml` definiert
-- **Automatische Generierung**: Skill-Dateien werden beim Installieren automatisch erstellt
-- **Plattformübergreifend**: Skills werden für alle erkannten Plattformen bereitgestellt
-- **Versionierbar**: Skills sind Teil des Pack-Manifests und damit versioniert
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Prompt name |
+| `description` | string | no | Short description |
+| `template` | string | no* | Inline template |
+| `variables` | string[] | no | Template variables |
 
-**Beispiel eines generierten Skill-Files:**
+#### `spec.skillCategories`
 
-Bei der Installation eines Packs mit dem obigen `code-analyzer` Skill wird automatisch eine Datei `skills/code-analyzer.md` mit folgendem Inhalt erstellt:
+Groups skills into named categories displayed in the category sidebar on the pack detail page.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `slug` | string | yes | Unique identifier (`^[a-z0-9-]+$`) |
+| `label` | string | yes | Full display label |
+| `shortLabel` | string | no | Abbreviated label for sidebar |
+| `description` | string | no | Category description |
+
+#### `spec.skills`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Skill name |
+| `display_name` | string | no | Human-readable name |
+| `description` | string | no | Short description |
+| `path` | string | no | Path to skill `.md` file (spec-nested format) |
+| `content` | string | no | Inline skill content (flat/inline format) |
+| `category` | string | no | Category slug — must match a `skillCategories` entry |
+| `parameters` | string[] | no | Skill parameters |
+| `tags` | string[] | no | Searchable tags |
+
+> At least one of `path` or `content` should be provided per skill.
+
+---
+
+## Example Manifest
+
+```yaml
+apiVersion: v1
+kind: Pack
+metadata:
+  name: my-awesome-pack
+  version: 1.0.0
+  description: A code quality pack for Python projects
+  author: Your Name
+  license: MIT
+  repository: https://github.com/you/my-awesome-pack
+  tags:
+    - code-review
+    - python
+
+spec:
+  agents:
+    - name: code-reviewer
+      description: Reviews code for quality and best practices
+      system_prompt: |
+        You are an expert code reviewer. Analyze code for best practices,
+        performance issues, and security vulnerabilities.
+      model: claude-opus-4-5
+      tools:
+        - read_file
+        - write_file
+
+  instructions:
+    - name: coding-standards
+      description: Coding standards to follow
+      path: ./instructions/coding-standards.md
+
+  prompts:
+    - name: review-request
+      description: Template for requesting code review
+      path: ./prompts/review-request.md
+      variables:
+        - language
+        - code
+        - focus_areas
+
+  skillCategories:
+    - slug: code-quality
+      label: Code Quality
+      shortLabel: Quality
+      description: Skills for improving and maintaining code quality.
+    - slug: security
+      label: Security
+      description: Skills for vulnerability assessment and secure coding.
+
+  skills:
+    - name: code-analyzer
+      description: Analyzes code structure and patterns
+      category: code-quality
+      path: ./skills/code-analyzer/SKILL.md
+      tags:
+        - refactoring
+        - complexity
+    - name: security-review
+      description: Identifies security vulnerabilities and suggests fixes
+      category: security
+      path: ./skills/security-review/SKILL.md
+      tags:
+        - security
+        - owasp
+
+  dependencies:
+    base-pack: "^1.0.0"
+```
+
+---
+
+## Skill Registration
+
+When a pack is installed, AyAiAy reads the `skills` entries from the manifest.
+Each skill references a Markdown file via `path`. These files follow the
+GitHub Copilot Agent skill format and are copied to platform-specific directories.
+
+**Benefits of manifest-based skill management:**
+- **Centralised definition** — Skills are declared in `ayaiay.yaml`
+- **Cross-platform** — Skills are deployed to all detected AI platforms
+- **Version-controlled** — Skills are part of the versioned pack manifest
+- **Categorised** — `skillCategories` powers the category navigation UI
+
+**Example of a generated skill file (`skills/code-analyzer/SKILL.md`):**
 
 ```markdown
 # code-analyzer
@@ -89,7 +218,7 @@ Analyzes code structure
 
 ## Overview
 
-This skill provides functionality for code analyzer.
+This skill provides functionality for code analysis.
 
 ## Function Signature
 
@@ -105,94 +234,50 @@ function code_analyzer(file_path, language): any
 ## Implementation
 
 Analyze code for patterns and complexity.
-
-...
 ```
 
-## Beispiel-Manifest
+---
 
-```yaml
-version: "1.0"
-name: my-awesome-pack
-description: Ein tolles Pack
-author: Your Name
-license: MIT
-repository: https://github.com/you/my-awesome-pack
-tags:
-  - code-review
-  - python
-
-agents:
-  - name: code-reviewer
-    description: Reviews code for quality
-    system_prompt: |
-      You are an expert code reviewer.
-    model: gpt-4
-    tools:
-      - read_file
-      - write_file
-
-instructions:
-  - name: coding-standards
-    description: Coding standards to follow
-    content: |
-      Follow PEP 8 for Python code.
-
-prompts:
-  - name: review-request
-    description: Template for requesting code review
-    template: |
-      Please review the following {language} code:
-    variables:
-      - language
-
-skills:
-  - name: code-analyzer
-    description: Analyzes code structure
-    content: |
-      Analyze code for patterns and complexity.
-    parameters:
-      - file_path
-      - language
-
-dependencies:
-  base-pack: "^1.0.0"
-```
-
-## Validierung
+## Validation
 
 ```bash
 ayaiay validate ayaiay.yaml
 ```
 
-## Plattform-Integration
+Both spec-nested and flat format manifests are accepted.
 
-Bei der Installation eines Packs kopiert AyAiAy die Dateien automatisch in die richtigen Zielverzeichnisse basierend auf den erkannten AI-Plattformen im Projekt.
+---
 
-### Unterstützte Plattformen
+## Platform Integration
 
-| Plattform | Zielverzeichnis | Erkennung |
+When a pack is installed, AyAiAy automatically copies files to the correct
+target directories based on the detected AI platforms in the project.
+
+### Supported Platforms
+
+| Platform | Target Directory | Detection |
 | --- | --- | --- |
-| GitHub Copilot | `.github/` | `.github/` Ordner |
-| Claude | `.claude/` | `.claude/` Ordner oder `CLAUDE.md` |
-| Cursor | `.cursor/` | `.cursorrules` Datei oder `.cursor/` Ordner |
-| Windsurf | `.windsurf/` | `.windsurfrules` oder `.windsurf/` Ordner |
-| Aider | `.aider/` | `.aider.conf.yml` oder `.aider/` Ordner |
+| GitHub Copilot | `.github/` | `.github/` folder present |
+| Claude | `.claude/` | `.claude/` folder or `CLAUDE.md` present |
+| Cursor | `.cursor/` | `.cursorrules` file or `.cursor/` folder |
+| Windsurf | `.windsurf/` | `.windsurfrules` or `.windsurf/` folder |
+| Aider | `.aider/` | `.aider.conf.yml` or `.aider/` folder |
 
-### Pack-Quellverzeichnisse
+### Pack Source Directories
 
-Packs können folgende Verzeichnisse enthalten, die automatisch in die Plattform-Zielverzeichnisse kopiert werden:
+Packs can contain the following directories, which are automatically copied
+to the platform target directories:
 
 - `agents/` → `<platform>/agents/`
 - `prompts/` → `<platform>/prompts/`
-- `instructions/` → `<platform>/` (direkt im Plattform-Root)
+- `instructions/` → `<platform>/` (directly in platform root)
 - `skills/` → `<platform>/skills/`
 - `tools/` → `<platform>/tools/`
 - `workflows/` → `<platform>/workflows/`
 
-### Beispiel
+### Example
 
-Ein Pack mit folgender Struktur:
+A pack with the following structure:
 
 ```
 my-pack/
@@ -200,24 +285,34 @@ my-pack/
 │   └── code-reviewer.md
 ├── instructions/
 │   └── copilot-instructions.md
+├── skills/
+│   └── code-analyzer/
+│       └── SKILL.md
 └── ayaiay.yaml
 ```
 
-Wird in einem Projekt mit `.github/` und `.claude/` Ordnern so installiert:
+Installed in a project with both `.github/` and `.claude/` folders:
 
 ```
 project/
 ├── .github/
 │   ├── agents/
 │   │   └── code-reviewer.md
+│   ├── skills/
+│   │   └── code-analyzer/
+│   │       └── SKILL.md
 │   └── copilot-instructions.md
 ├── .claude/
 │   ├── agents/
 │   │   └── code-reviewer.md
+│   ├── skills/
+│   │   └── code-analyzer/
+│   │       └── SKILL.md
 │   └── copilot-instructions.md
 └── ayaiay.json
 ```
 
-### Standard-Plattform
+### Default Platform
 
-Wenn keine Plattform erkannt wird, aber `ayaiay.json` existiert, wird standardmäßig **GitHub Copilot** (`.github/`) als Ziel verwendet.
+If no platform is detected but `ayaiay.json` exists, **GitHub Copilot**
+(`.github/`) is used as the default target.

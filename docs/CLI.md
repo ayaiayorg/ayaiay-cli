@@ -1,22 +1,23 @@
-# CLI-Referenz
+# CLI Reference
 
-Diese Referenz beschreibt alle verfügbaren Befehle der AyAiAy CLI.
+This reference describes all available commands of the AyAiAy CLI.
 
-## Globale Optionen
+## Global Options
 
-- `--api-url`: Überschreibt die API-Basis-URL (entspricht `AYAIAY_API_URL`).
-- `--version`: Gibt die Version aus.
+- `--api-url`: Override the API base URL (equivalent to setting `AYAIAY_API_URL`).
+- `--version`: Print the CLI version and exit.
 
-Beispiel:
+Example:
 
 ```bash
 ayaiay --api-url https://api.ayaiay.org info
 ```
 
-## Befehle
+## Commands
 
 ### `search`
-Sucht Packs im Marketplace.
+
+Search for packs in the marketplace.
 
 ```bash
 ayaiay search "code review"
@@ -24,14 +25,17 @@ ayaiay search --type agent
 ayaiay search --tag python --tag testing
 ```
 
-Optionen:
-- `--type, -t`: `agent`, `instruction`, `prompt`
-- `--tag, -g`: Mehrfach verwendbar
-- `--limit, -l`: Anzahl Ergebnisse pro Seite
-- `--page, -p`: Seitennummer
+Options:
+- `--type, -t`: Filter by type — `agent`, `instruction`, or `prompt`
+- `--tag, -g`: Filter by tag (can be used multiple times)
+- `--limit, -l`: Number of results per page
+- `--page, -p`: Page number
+
+---
 
 ### `install`
-Installiert ein Pack aus dem Marketplace.
+
+Install a pack from the marketplace.
 
 ```bash
 ayaiay install acme/code-reviewer
@@ -39,115 +43,160 @@ ayaiay install acme/code-reviewer@1.0.0
 ayaiay install acme/code-reviewer@latest
 ```
 
-Optionen:
-- `--force, -f`: Erzwingt eine Neuinstallation
+Options:
+- `--force, -f`: Force reinstall even if already installed
+
+---
 
 ### `uninstall`
-Deinstalliert ein Pack.
+
+Uninstall a pack.
 
 ```bash
 ayaiay uninstall acme/code-reviewer
 ```
 
+---
+
 ### `list`
-Listet installierte Packs.
+
+List all installed packs.
 
 ```bash
 ayaiay list
 ```
 
+---
+
 ### `show`
-Zeigt Details zu einem Pack.
+
+Show details for a pack.
 
 ```bash
 ayaiay show acme/code-reviewer
 ```
 
+---
+
 ### `validate`
-Validiert eine ayaiay.yaml Manifest-Datei.
+
+Validate an `ayaiay.yaml` manifest file.
+
+`ayaiay validate` accepts both the flat format and the canonical spec-nested format
+(`apiVersion/kind/metadata/spec`). Spec-nested manifests are automatically normalised
+before validation, so you can validate any pack manifest regardless of format.
 
 ```bash
 ayaiay validate ayaiay.yaml
 ayaiay validate ./my-pack/ayaiay.yaml
 ```
 
-Optionen:
-- `--quiet, -q`: Nur Fehlerausgabe
+Options:
+- `--quiet, -q`: Only output errors (suppress warnings and success message)
+
+---
 
 ### `info`
-Zeigt Konfiguration und API-Status.
+
+Show CLI configuration and API connectivity status.
 
 ```bash
 ayaiay info
 ```
 
+---
+
 ### `init`
-Initialisiert ein ayaiay.json Lock-File.
+
+Initialise an `ayaiay.json` lock file in the current (or specified) directory.
 
 ```bash
 ayaiay init
 ayaiay init --path /path/to/project
 ```
 
-Optionen:
-- `--path, -p`: Zielordner für ayaiay.json
+Options:
+- `--path, -p`: Target directory for `ayaiay.json`
+
+---
 
 ### `add`
-Fügt ein Pack zur ayaiay.json hinzu und installiert es.
+
+Add a pack to `ayaiay.json` and install it.
 
 ```bash
 ayaiay add acme/code-reviewer
 ayaiay add acme/code-reviewer@1.0.0
 ```
 
-Optionen:
-- `--force, -f`: Erzwingt Neuinstallation
-- `--path, -p`: Zielordner für ayaiay.json
+Options:
+- `--force, -f`: Force reinstall
+- `--path, -p`: Target directory for `ayaiay.json`
+
+---
 
 ### `remove`
-Entfernt ein Pack aus ayaiay.json und deinstalliert es.
+
+Remove a pack from `ayaiay.json` and uninstall it.
 
 ```bash
 ayaiay remove acme/code-reviewer
 ```
 
-Optionen:
-- `--path, -p`: Zielordner für ayaiay.json
+Options:
+- `--path, -p`: Target directory for `ayaiay.json`
+
+---
 
 ### `sync`
-Gleicht installierte Packs mit ayaiay.json ab.
+
+Synchronise installed packs with `ayaiay.json` (install missing, remove extra).
 
 ```bash
 ayaiay sync
 ```
 
-Optionen:
-- `--path, -p`: Zielordner für ayaiay.json
+Options:
+- `--path, -p`: Target directory for `ayaiay.json`
+
+---
 
 ### `update`
-Aktualisiert Packs auf die neuesten Versionen.
+
+Update one or all packs to their latest versions.
 
 ```bash
 ayaiay update
 ayaiay update acme/code-reviewer
 ```
 
-Optionen:
-- `--path, -p`: Zielordner für ayaiay.json
+Options:
+- `--path, -p`: Target directory for `ayaiay.json`
+
+---
 
 ### `init-pack`
-Initialisiert ein neues Pack mit interaktivem Assistenten.
+
+Initialise a new pack interactively.
+
+The wizard prompts for basic information (name, description, author, license,
+repository, tags) and lets you choose which artifact types to include (agents,
+instructions, prompts, skills). It then generates an `ayaiay.yaml` manifest in
+spec-nested format.
 
 ```bash
 ayaiay init-pack
 ayaiay init-pack --path /path/to/new-pack
 ```
 
-Optionen:
-- `--path, -p`: Zielordner für das Pack
+Options:
+- `--path, -p`: Target directory for the new pack
+
+---
 
 ### `init-skill`
-Generiert ein GitHub Copilot Agent Skill Skeleton.
+
+Generate a GitHub Copilot Agent skill skeleton file.
 
 ```bash
 ayaiay init-skill
@@ -156,21 +205,29 @@ ayaiay init-skill --name file-reader --path ./skills
 ayaiay init-skill --name my-skill --output custom-name.md
 ```
 
-Optionen:
-- `--name, -n`: Skill-Name (interaktiv wenn nicht angegeben)
-- `--path, -p`: Zielordner für die Skill-Datei (Standard: aktuelles Verzeichnis)
-- `--output, -o`: Ausgabe-Dateiname (Standard: `<skill-name>.md`)
+Options:
+- `--name, -n`: Skill name (prompted interactively if omitted)
+- `--path, -p`: Target directory for the skill file (default: current directory)
+- `--output, -o`: Output filename (default: `<skill-name>.md`)
 
-Skills sind spezielle Dateien, die bestimmte Fähigkeiten oder Aktionen definieren, die Agenten ausführen können. Der `init-skill` Befehl erstellt eine Skeleton-Datei im GitHub Copilot Agent Skill Format mit Abschnitten für Funktionssignatur, Parameter, Implementierungsdetails und Beispiele.
+Skills are Markdown files that define capabilities agents can perform. The
+`init-skill` command creates a skeleton in the GitHub Copilot Agent skill format
+with sections for function signature, parameters, implementation details, and
+examples.
 
-Siehe: [GitHub Copilot Agent Skills Documentation](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills)
+See: [GitHub Copilot Agent Skills Documentation](https://docs.github.com/en/copilot/concepts/agents/about-agent-skills)
 
-## Referenz-Format
+---
+
+## Pack Reference Format
+
+Packs are referenced by `publisher/name`, optionally with a version specifier:
 
 - `publisher/name`
 - `publisher/name@version`
 - `publisher/name@latest`
 
-Beispiele:
+Examples:
 - `acme/code-reviewer`
 - `acme/code-reviewer@1.2.0`
+- `acme/code-reviewer@latest`
