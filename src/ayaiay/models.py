@@ -85,7 +85,8 @@ class ManifestInstruction(BaseModel):
 
     name: str = Field(..., description="Instruction name")
     description: str | None = Field(None, description="Instruction description")
-    content: str = Field(..., description="Instruction content")
+    content: str | None = Field(None, description="Inline instruction content (flat format)")
+    path: str | None = Field(None, description="Path to instruction file (spec-nested format)")
 
 
 class ManifestPrompt(BaseModel):
@@ -93,7 +94,8 @@ class ManifestPrompt(BaseModel):
 
     name: str = Field(..., description="Prompt name")
     description: str | None = Field(None, description="Prompt description")
-    template: str = Field(..., description="Prompt template")
+    template: str | None = Field(None, description="Inline prompt template (flat format)")
+    path: str | None = Field(None, description="Path to prompt template file (spec-nested format)")
     variables: list[str] = Field(default_factory=list, description="Template variables")
 
 
@@ -114,7 +116,8 @@ class ManifestSkill(BaseModel):
     name: str = Field(..., description="Skill name")
     display_name: str | None = Field(None, description="Human-readable skill name")
     description: str | None = Field(None, description="Skill description")
-    content: str = Field(..., description="Skill content/implementation")
+    content: str | None = Field(None, description="Inline skill content/implementation (flat format)")
+    path: str | None = Field(None, description="Path to skill file (spec-nested format)")
     category: str | None = Field(None, description="Category slug (must match a skillCategories entry)")
     parameters: list[str] = Field(default_factory=list, description="Skill parameters")
     tags: list[str] = Field(default_factory=list, description="Searchable tags")

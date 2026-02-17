@@ -87,11 +87,15 @@ MANIFEST_SCHEMA: dict[str, Any] = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["name", "content"],
+                "required": ["name"],
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
                     "description": {"type": "string"},
                     "content": {"type": "string", "minLength": 1},
+                    "path": {
+                        "type": "string",
+                        "description": "Path to instruction file (spec-nested format)",
+                    },
                 },
             },
             "description": "Instruction definitions",
@@ -100,11 +104,15 @@ MANIFEST_SCHEMA: dict[str, Any] = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["name", "template"],
+                "required": ["name"],
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
                     "description": {"type": "string"},
                     "template": {"type": "string", "minLength": 1},
+                    "path": {
+                        "type": "string",
+                        "description": "Path to prompt template file (spec-nested format)",
+                    },
                     "variables": {
                         "type": "array",
                         "items": {"type": "string"},
@@ -137,12 +145,16 @@ MANIFEST_SCHEMA: dict[str, Any] = {
             "type": "array",
             "items": {
                 "type": "object",
-                "required": ["name", "content"],
+                "required": ["name"],
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
                     "display_name": {"type": "string"},
                     "description": {"type": "string"},
                     "content": {"type": "string", "minLength": 1},
+                    "path": {
+                        "type": "string",
+                        "description": "Path to skill file (spec-nested format)",
+                    },
                     "category": {
                         "type": "string",
                         "description": "Category slug — must match a skillCategories entry",
@@ -171,6 +183,47 @@ MANIFEST_SCHEMA: dict[str, Any] = {
     },
     "additionalProperties": False,
 }
+
+
+def _normalize_manifest(data: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a spec-nested manifest to flat format for validation.
+
+    If the manifest uses the spec-nested format (has an ``apiVersion`` key),
+    the ``metadata`` and ``spec`` sections are flattened to the root level so
+    that the existing JSON Schema validator can process it without changes.
+
+    Flat manifests (no ``apiVersion`` key) are returned unchanged.
+
+    Args:
+        data: Raw parsed YAML data.
+
+    Returns:
+        Normalised dict suitable for JSON Schema validation.
+    """
+    if "apiVersion" not in data:
+        return data
+
+    flat: dict[str, Any] = {}
+
+    # Flatten metadata fields to root
+    metadata_keys = ("name", "version", "description", "author", "license", "repository", "tags")
+    for key in metadata_keys:
+        value = data.get("metadata", {}).get(key)
+        if value is not None:
+            flat[key] = value
+
+    # Flatten spec fields to root
+    spec = data.get("spec", {}) or {}
+    for key, value in spec.items():
+        flat[key] = value
+
+    # Preserve any top-level keys that are neither apiVersion/kind/metadata/spec
+    skip = {"apiVersion", "kind", "metadata", "spec"}
+    for key, value in data.items():
+        if key not in skip:
+            flat[key] = value
+
+    return flat
 
 
 class ValidationResult(BaseModel):
@@ -243,6 +296,9 @@ def validate_manifest(path: Path | str) -> ValidationResult:
         result.add_error("Manifest must be a YAML mapping (dictionary)")
         return result
 
+    # Normalise spec-nested format to flat format before validation
+    data = _normalize_manifest(data)
+
     # JSON Schema validation
     validator = Draft7Validator(MANIFEST_SCHEMA)
     for error in validator.iter_errors(data):
@@ -287,6 +343,13 @@ def _validate_semantic_rules(result: ValidationResult, data: dict[str, Any]) -> 
         duplicates = [name for name in set(names) if names.count(name) > 1]
         for dup in duplicates:
             result.add_error(f"Duplicate {category[:-1]} name: {dup}")
+
+    # Validate that each skill has at least content or path
+    for skill in data.get("skills", []):
+        if not skill.get("content") and not skill.get("path"):
+            result.add_error(
+                f"Skill '{skill.get('name', '?')}' must have either 'content' or 'path' defined"
+            )
 
     # Validate skillCategories: unique slugs
     skill_categories = data.get("skillCategories", [])
