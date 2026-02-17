@@ -97,13 +97,27 @@ class ManifestPrompt(BaseModel):
     variables: list[str] = Field(default_factory=list, description="Template variables")
 
 
+class ManifestSkillCategory(BaseModel):
+    """Skill category definition in ayaiay.yaml manifest."""
+
+    slug: str = Field(..., description="Category slug (lowercase, hyphens only)")
+    label: str = Field(..., description="Full display label")
+    short_label: str | None = Field(None, alias="shortLabel", description="Short label for sidebar")
+    description: str | None = Field(None, description="Category description")
+
+    model_config = {"populate_by_name": True}
+
+
 class ManifestSkill(BaseModel):
     """Skill definition in ayaiay.yaml manifest."""
 
     name: str = Field(..., description="Skill name")
+    display_name: str | None = Field(None, description="Human-readable skill name")
     description: str | None = Field(None, description="Skill description")
     content: str = Field(..., description="Skill content/implementation")
+    category: str | None = Field(None, description="Category slug (must match a skillCategories entry)")
     parameters: list[str] = Field(default_factory=list, description="Skill parameters")
+    tags: list[str] = Field(default_factory=list, description="Searchable tags")
 
 
 class Manifest(BaseModel):
@@ -125,6 +139,11 @@ class Manifest(BaseModel):
     prompts: list[ManifestPrompt] = Field(
         default_factory=list, description="Prompt definitions"
     )
+    skill_categories: list[ManifestSkillCategory] = Field(
+        default_factory=list,
+        alias="skillCategories",
+        description="Skill category definitions for grouping and navigation",
+    )
     skills: list[ManifestSkill] = Field(
         default_factory=list, description="Skill definitions"
     )
@@ -134,6 +153,8 @@ class Manifest(BaseModel):
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata"
     )
+
+    model_config = {"populate_by_name": True}
 
 
 class LockFilePackage(BaseModel):

@@ -113,6 +113,26 @@ MANIFEST_SCHEMA: dict[str, Any] = {
             },
             "description": "Prompt template definitions",
         },
+        "skillCategories": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["slug", "label"],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$",
+                        "minLength": 1,
+                        "description": "Unique category slug (lowercase alphanumeric + hyphens)",
+                    },
+                    "label": {"type": "string", "minLength": 1},
+                    "shortLabel": {"type": "string"},
+                    "description": {"type": "string"},
+                },
+                "additionalProperties": False,
+            },
+            "description": "Skill category definitions for grouping and navigation",
+        },
         "skills": {
             "type": "array",
             "items": {
@@ -120,9 +140,18 @@ MANIFEST_SCHEMA: dict[str, Any] = {
                 "required": ["name", "content"],
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
+                    "display_name": {"type": "string"},
                     "description": {"type": "string"},
                     "content": {"type": "string", "minLength": 1},
+                    "category": {
+                        "type": "string",
+                        "description": "Category slug — must match a skillCategories entry",
+                    },
                     "parameters": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                    },
+                    "tags": {
                         "type": "array",
                         "items": {"type": "string"},
                     },
@@ -258,6 +287,26 @@ def _validate_semantic_rules(result: ValidationResult, data: dict[str, Any]) -> 
         duplicates = [name for name in set(names) if names.count(name) > 1]
         for dup in duplicates:
             result.add_error(f"Duplicate {category[:-1]} name: {dup}")
+
+    # Validate skillCategories: unique slugs
+    skill_categories = data.get("skillCategories", [])
+    category_slugs: set[str] = set()
+    for cat in skill_categories:
+        slug = cat.get("slug", "")
+        if slug in category_slugs:
+            result.add_error(f"Duplicate skillCategory slug: '{slug}'")
+        else:
+            category_slugs.add(slug)
+
+    # Validate that skills reference defined category slugs
+    if category_slugs:
+        for skill in data.get("skills", []):
+            skill_category = skill.get("category")
+            if skill_category and skill_category not in category_slugs:
+                result.add_error(
+                    f"Skill '{skill.get('name', '?')}' references undefined category "
+                    f"'{skill_category}'. Defined categories: {sorted(category_slugs)}"
+                )
 
     # Validate dependency version constraints
     dependencies = data.get("dependencies", {})
