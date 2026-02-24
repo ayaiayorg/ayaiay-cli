@@ -2,13 +2,19 @@
 
 ## Current Status
 
-⚠️ **The `ayaiay` package is not yet published to PyPI.** The first release is pending.
+✅ **The `ayaiay` package is published on PyPI.**
 
 ## Installation Options
 
-Until the package is published to PyPI, you can install it using one of these methods:
+You can install the package using one of these methods:
 
-### Option 1: Install from GitHub (Recommended)
+### Option 1: Install from PyPI (Recommended)
+
+```bash
+pip install ayaiay
+```
+
+### Option 2: Install from GitHub
 
 Install directly from the GitHub repository:
 
@@ -16,13 +22,13 @@ Install directly from the GitHub repository:
 pip install git+https://github.com/ayaiayorg/ayaiay-cli.git
 ```
 
-Install a specific version (once tags are available):
+Install a specific tagged version:
 
 ```bash
 pip install git+https://github.com/ayaiayorg/ayaiay-cli.git@v1.1.0
 ```
 
-### Option 2: Install from Source
+### Option 3: Install from Source
 
 Clone the repository and install locally:
 
@@ -38,7 +44,7 @@ For development with all dependencies:
 pip install -e ".[dev]"
 ```
 
-### Option 3: Install from Wheel (Manual Build)
+### Option 4: Install from Wheel (Manual Build)
 
 If you have the source code:
 
@@ -176,12 +182,12 @@ Before publishing a new version:
 - Check that `setuptools>=61.0` is available
 - Verify the package structure follows Python packaging standards
 
-## After First Publication
+## Current PyPI Installation
 
-Once the package is published to PyPI, update the README.md to remove the warning and confirm that the standard installation works:
+Confirm that installation from PyPI works:
 
 ```bash
 pip install ayaiay
 ```
 
-Users should then be able to install the package normally from PyPI.
+Users can install the package directly from PyPI.

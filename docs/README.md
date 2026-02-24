@@ -17,14 +17,6 @@ Willkommen in der lokalen Dokumentation der AyAiAy CLI. Hier findest du alle rel
 
 ### Installation
 
-> Hinweis: Das Paket ist aktuell noch nicht auf PyPI veröffentlicht.
-
-```bash
-pip install git+https://github.com/ayaiayorg/ayaiay-cli.git
-```
-
-Sobald verfügbar:
-
 ```bash
 pip install ayaiay
 ```
